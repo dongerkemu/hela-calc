@@ -963,8 +963,15 @@ document.getElementById('woodPrice').addEventListener('input', renderAll);
 document.getElementById('fuelPrice').addEventListener('input', renderAll);
 
 // 初始化
-renderTabs();
-renderAll();
+window.onerror = function(msg, url, line) {
+  document.body.innerHTML = '<div style=\"padding:20px;color:red;font-size:14px\"><b>JS Error:</b><br>' + msg + '<br>Line: ' + line + '<br><br>请截图发给开发者</div>';
+};
+try {
+  renderTabs();
+  renderAll();
+} catch(e) {
+  document.body.innerHTML = '<div style=\"padding:20px;color:red;font-size:14px\"><b>JS Error:</b><br>' + e.message + '<br><br>请截图发给开发者</div>';
+}
 </script>
 
 </body>
