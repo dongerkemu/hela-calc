@@ -438,22 +438,16 @@ body {
   <div class="price-row">
     <div class="price-item">
       <label><span class="dot dot-gold"></span>金子 GOLD</label>
-      <input type="number" id="goldPrice" value="0.86" step="0.01" min="0.01" placeholder="金子价格">
+      <input type="number" id="goldPrice" value="0.91" step="0.01" min="0.01" placeholder="金子价格">
     </div>
     <div class="price-item">
       <label><span class="dot dot-wood"></span>木头 WOOD</label>
-      <input type="number" id="woodPrice" value="0.87" step="0.01" min="0.01" placeholder="木头价格">
+      <input type="number" id="woodPrice" value="0.89" step="0.01" min="0.01" placeholder="木头价格">
     </div>
     <div class="price-item">
       <label><span class="dot dot-fuel"></span>燃料</label>
       <input type="number" id="fuelPrice" value="0.20" step="0.01" min="0.01" placeholder="燃料价格">
     </div>
-  </div>
-
-  <div class="price-preset">
-    <button onclick="setPrices(0.86,0.87,0.20)">当前市价</button>
-    <button onclick="setPrices(0.86,0.87,0.20)">均衡价格</button>
-    <button onclick="setPrices(1.0,1.0,1.0)">基准单位</button>
   </div>
 </div>
 
@@ -607,6 +601,8 @@ const EQUIPMENT = [
 ];
 
 
+const FEE_RATE = 0.03;  // 3% 卖出手续费
+
 let currentEq = EQUIPMENT[0];
 
 // ==================== 计算函数 ====================
@@ -622,26 +618,31 @@ function calcSynthesis(eq, p) {
   return eq.synth.gold * p.gold + eq.synth.wood * p.wood + eq.synth.fuel * p.fuel;
 }
 
-function calcNetPerCycle(eq, p) {
-  if (eq.isFarm) {
-    return eq.outputPerCycle * p.gold - eq.seedFuel * p.fuel;
-  }
+function calcNetPerCycle(eq, p, withFee) {
+  if (withFee === undefined) withFee = true;
   const outputPrice = eq.outputType === 'gold' ? p.gold : p.wood;
-  return eq.outputPerCycle * outputPrice - eq.runFuelPerCycle * p.fuel - eq.repairGold * p.gold;
+  const gross = eq.outputPerCycle * outputPrice * (withFee ? (1 - FEE_RATE) : 1);
+  if (eq.isFarm) {
+    return gross - eq.seedFuel * p.fuel;
+  }
+  return gross - eq.runFuelPerCycle * p.fuel - eq.repairGold * p.gold;
 }
 
-function calcDailyNet(eq, p) {
-  const netPerCycle = calcNetPerCycle(eq, p);
+function calcDailyNet(eq, p, withFee) {
+  if (withFee === undefined) withFee = true;
+  const netPerCycle = calcNetPerCycle(eq, p, withFee);
   const cyclesPerDay = 24 / eq.cycleH;
   return netPerCycle * cyclesPerDay;
 }
 
-function calcMonthlyNet(eq, p) {
-  return calcDailyNet(eq, p) * 30;
+function calcMonthlyNet(eq, p, withFee) {
+  if (withFee === undefined) withFee = true;
+  return calcDailyNet(eq, p, withFee) * 30;
 }
 
-function calcPaybackDays(eq, p) {
-  const daily = calcDailyNet(eq, p);
+function calcPaybackDays(eq, p, withFee) {
+  if (withFee === undefined) withFee = true;
+  const daily = calcDailyNet(eq, p, withFee);
   if (daily <= 0) return Infinity;
   return calcSynthesis(eq, p) / daily;
 }
@@ -672,15 +673,14 @@ function renderSummary(p) {
   const cost = calcSynthesis(eq, p);
   const monthly = calcMonthlyNet(eq, p);
   const rate = calcMonthlyRate(eq, p);
-  const days = calcPaybackDays(eq, p);
-
+  const daysNoFee = calcPaybackDays(eq, p, false);
   document.getElementById('summary').innerHTML = `
     <div class="summary-card total">
       <div class="label">${eq.name} · 合成成本</div>
       <div class="value">${fmt(cost)}<span class="unit"> U</span></div>
     </div>
     <div class="summary-card monthly">
-      <div class="label">每月净收益</div>
+      <div class="label">每月净收益(含3%手续费)</div>
       <div class="value">${fmt(monthly)}<span class="unit"> U</span></div>
     </div>
     <div class="summary-card rate">
@@ -688,8 +688,9 @@ function renderSummary(p) {
       <div class="value" style="color:${rate >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(rate)}<span class="unit">%</span></div>
     </div>
     <div class="summary-card days">
-      <div class="label">回本天数</div>
+      <div class="label">回本天数(含3%手续费)</div>
       <div class="value">${isFinite(days) ? fmt(days) : '∞'}<span class="unit"> 天</span></div>
+      <div class="unit" style="font-size:10px;color:#aaa;display:block">不含手续费 ${isFinite(daysNoFee) ? fmt(daysNoFee) : '∞'} 天</div>
     </div>
   `;
 }
@@ -709,6 +710,7 @@ function renderDetail(p) {
   const cyclesPerDay = 24 / eq.cycleH;
   const outputPrice = eq.outputType === 'gold' ? p.gold : p.wood;
   const grossPerCycle = eq.outputPerCycle * outputPrice;
+  const grossAfterFee = grossPerCycle * (1 - FEE_RATE);
 
   let detailRows = `
     <div class="detail-row"><span class="dl">装备类型</span><span class="dv">${eq.icon} ${eq.name}</span></div>
@@ -732,10 +734,12 @@ function renderDetail(p) {
 
   detailRows += `
     <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${eq.outputType === 'gold' ? 'GOLD' : 'WOOD'} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> U</span></div>
-    <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益</span><span class="dv highlight">${fmt(netPerCycle)} U</span></div>
+    <div class="detail-row"><span class="dl">卖出扣3%手续费</span><span class="dv" style="color:var(--red)">−${fmt(grossPerCycle - grossAfterFee)} U</span></div>
+    <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益(含手续费)</span><span class="dv highlight">${fmt(netPerCycle)} U</span></div>
     <div class="detail-row"><span class="dl">日净收益</span><span class="dv">${fmt(daily)} U</span></div>
     <div class="detail-row"><span class="dl">月净收益 (30天)</span><span class="dv">${fmt(monthly)} U</span></div>
-    <div class="detail-row"><span class="dl">回本天数</span><span class="dv" style="color:${days < 60 ? 'var(--green)' : days < 120 ? '#e67e22' : 'var(--red)'}">${isFinite(days) ? fmt(days) + ' 天' : '永不回本'}</span></div>
+    <div class="detail-row"><span class="dl">回本天数(含3%手续费)</span><span class="dv" style="color:${days < 60 ? 'var(--green)' : days < 120 ? '#e67e22' : 'var(--red)'}">${isFinite(days) ? fmt(days) + ' 天' : '永不回本'}</span></div>
+    <div class="detail-row"><span class="dl">回本天数(不含手续费)</span><span class="dv" style="color:#aaa">${isFinite(calcPaybackDays(eq, p, false)) ? fmt(calcPaybackDays(eq, p, false)) + ' 天' : '永不回本'}</span></div>
   `;
 
   document.getElementById('detailCard').innerHTML = `
@@ -762,11 +766,11 @@ function renderDetail(p) {
   if (eq.isFarm) {
     formula = `<code>合成成本 = ${eq.synth.gold}×金子 + ${eq.synth.wood}×木头 + ${eq.synth.fuel}×燃料</code><br>
                <code>每轮(${eq.cycleH/24}天)净收益 = ${eq.outputPerCycle}×金子 − ${eq.seedFuel}×燃料</code><br>
-               <code>日净收益 = 每轮净收益 / ${eq.cycleH/24}</code>`;
+               <code>日净收益 = 每轮净收益(已扣3%手续费) / ${eq.cycleH/24}</code>`;
   } else {
     formula = `<code>合成成本 = ${eq.synth.gold}×金子 + ${eq.synth.wood}×木头 + ${eq.synth.fuel}×燃料</code><br>
                <code>每轮(${eq.cycleH}h)净收益 = ${eq.outputPerCycle}×${eq.outputType === 'gold' ? '金子' : '木头'} − ${eq.runFuelPerCycle}×燃料 − ${eq.repairGold}×金子</code><br>
-               <code>日净收益 = 每轮净收益 × ${cyclesPerDay}</code>`;
+               <code>日净收益 = 每轮净收益(已扣3%手续费) × ${cyclesPerDay}</code>`;
   }
   formula += `<br><code>月化率 = 月净收益 / 合成成本 × 100% &nbsp;|&nbsp; 回本天数 = 合成成本 / 日净收益</code>`;
   document.getElementById('formulaBar').innerHTML = formula;
@@ -791,7 +795,7 @@ function renderTable(p) {
   const worstDays = Math.max(...rows.map(r => isFinite(r.days) ? r.days : 0));
 
   let html = `<thead><tr>
-    <th>装备</th><th>周期</th><th>产出/轮</th><th>合成成本</th><th>每轮净收益</th><th>月净收益</th><th>月化率</th><th>回本天数</th>
+    <th>装备</th><th>周期</th><th>产出/轮</th><th>合成成本</th><th>每轮净收益</th><th>月净收益</th><th>月化率</th><th>回本(含3%手续费)</th>
   </tr></thead><tbody>`;
 
   rows.forEach(r => {
@@ -826,12 +830,6 @@ function selectEq(id) {
   renderTabs();
 }
 
-function setPrices(g, w, f) {
-  document.getElementById('goldPrice').value = g;
-  document.getElementById('woodPrice').value = w;
-  document.getElementById('fuelPrice').value = f;
-  renderAll();
-}
 
 // ==================== 购买记录 (localStorage) ====================
 const STORAGE_KEY = 'hela_purchase_records';
@@ -920,8 +918,10 @@ function renderPurchaseList() {
   el.innerHTML = records.map(r => {
     const eq = EQUIPMENT.find(e => e.id === r.eqId);
     if (!eq) return '';
-    const daily = calcDailyNet(eq, p);
+    const daily = calcDailyNet(eq, p, true);
+    const dailyNoFee = calcDailyNet(eq, p, false);
     const days = daily > 0 ? r.cost / daily : Infinity;
+    const daysNoFee = dailyNoFee > 0 ? r.cost / dailyNoFee : Infinity;
     let cls = days > 60 ? 'slow' : days > 30 ? 'medium' : 'fast';
     // Show material prices if available (compat with old records)
     let matInfo = '';
@@ -936,7 +936,8 @@ function renderPurchaseList() {
       '</div>' +
       '<div class="pi-right">' +
         '<div class="pi-cost">成本 ' + fmt(r.cost) + ' U</div>' +
-        '<div class="pi-payback ' + cls + '">预估回本 ' + (isFinite(days) ? fmt(days) + ' 天' : '∞') + '</div>' +
+        '<div class="pi-payback ' + cls + '">含手续费 ' + (isFinite(days) ? fmt(days) + ' 天' : '∞') + '</div>' +
+        '<div class="pi-payback" style="color:#bbb;font-size:10px">不含 ' + (isFinite(daysNoFee) ? fmt(daysNoFee) + ' 天' : '∞') + '</div>' +
       '</div>' +
       '<button class="btn-del" onclick="deleteRecord(' + r.id + ')">×</button>' +
     '</div>';
