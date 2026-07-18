@@ -795,7 +795,7 @@ function renderTable(p) {
   const worstDays = Math.max(...rows.map(r => isFinite(r.days) ? r.days : 0));
 
   let html = `<thead><tr>
-    <th>装备</th><th>周期</th><th>产出/轮</th><th>合成成本</th><th>每轮净收益</th><th>月净收益</th><th>月化率</th><th>回本(含3%手续费)</th>
+    <th>装备</th><th>周期</th><th>产出/轮</th><th>合成成本</th><th>月净收益</th><th>月化率</th><th>回本(含3%手续费)</th>
   </tr></thead><tbody>`;
 
   rows.forEach(r => {
@@ -807,7 +807,7 @@ function renderTable(p) {
       <td>${r.cycleLabel}</td>
       <td>${r.outputLabel}</td>
       <td>${fmt(r.cost)}</td>
-      <td>${fmt(r.netPerCycle)}</td>
+      
       <td>${fmt(r.monthly)}</td>
       <td class="${rateClass}">${fmt(r.rate)}%</td>
       <td class="${daysClass}">${isFinite(r.days) ? fmt(r.days) + '天' : '∞'}</td>
