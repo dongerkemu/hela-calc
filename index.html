@@ -673,6 +673,7 @@ function renderSummary(p) {
   const cost = calcSynthesis(eq, p);
   const monthly = calcMonthlyNet(eq, p);
   const rate = calcMonthlyRate(eq, p);
+  const days = calcPaybackDays(eq, p);
   const daysNoFee = calcPaybackDays(eq, p, false);
   document.getElementById('summary').innerHTML = `
     <div class="summary-card total">
