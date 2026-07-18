@@ -326,6 +326,94 @@ body {
 .comp-table .worst { color: var(--red); }
 .comp-table tr.row-selected { background: #e3f2fd; }
 
+
+/* Purchase Records */
+.purchase-section {
+  margin: 0 16px 16px;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.purchase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.btn-add {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+.purchase-list { display: flex; flex-direction: column; gap: 8px; }
+.purchase-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #fafafa;
+  border-radius: 10px;
+  font-size: 12px;
+}
+.purchase-item .pi-left { display: flex; flex-direction: column; gap: 2px; }
+.purchase-item .pi-name { font-weight: 700; font-size: 14px; }
+.purchase-item .pi-date { color: #aaa; font-size: 11px; }
+.purchase-item .pi-right { text-align: right; }
+.purchase-item .pi-cost { font-weight: 600; }
+.purchase-item .pi-payback { font-size: 11px; }
+.purchase-item .pi-payback.fast { color: var(--green); }
+.purchase-item .pi-payback.medium { color: #e67e22; }
+.purchase-item .pi-payback.slow { color: var(--red); }
+.btn-del {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 6px;
+  line-height: 1;
+}
+/* Modal */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  width: 90%;
+  max-width: 360px;
+}
+.modal-box h3 { font-size: 16px; margin-bottom: 14px; }
+.modal-box select, .modal-box input {
+  width: 100%; padding: 10px; border: 1.5px solid var(--border);
+  border-radius: 10px; font-size: 14px; margin-bottom: 10px;
+  background: #fafafa;
+  -webkit-appearance: none;
+}
+.modal-box .cost-auto {
+  font-size: 12px; color: #aaa; margin-bottom: 10px;
+  text-align: center;
+}
+.modal-btns { display: flex; gap: 8px; }
+.modal-btns button {
+  flex: 1; padding: 10px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  border: none;
+}
+.btn-save { background: var(--accent); color: #fff; }
+.btn-cancel { background: #eee; color: #666; }
+.empty-hint { text-align: center; color: #ccc; padding: 20px; font-size: 13px; }
+
 /* Footer */
 .footer {
   text-align: center;
@@ -390,6 +478,28 @@ body {
 <div class="detail-card" id="detailCard"></div>
 
 <div class="formula-bar" id="formulaBar"></div>
+
+<div class="purchase-section">
+  <div class="purchase-header">
+    <div class="section-title">购买记录</div>
+    <button class="btn-add" onclick="openAddModal()">+ 添加记录</button>
+  </div>
+  <div class="purchase-list" id="purchaseList"></div>
+</div>
+
+<div class="modal-overlay" id="addModal" style="display:none">
+  <div class="modal-box">
+    <h3>添加购买记录</h3>
+    <select id="recordEq"></select>
+    <input type="date" id="recordDate">
+    <input type="number" id="recordCost" step="0.01" placeholder="实际购买成本 (U)">
+    <div class="cost-auto" id="costHint"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeAddModal()">取消</button>
+      <button class="btn-save" onclick="saveRecord()">保存</button>
+    </div>
+  </div>
+</div>
 
 <div class="table-wrap">
   <div class="table-title">全装备对比</div>
@@ -706,6 +816,108 @@ function setPrices(g, w, f) {
   document.getElementById('fuelPrice').value = f;
   renderAll();
 }
+
+// ==================== 购买记录 (localStorage) ====================
+const STORAGE_KEY = 'hela_purchase_records';
+
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch(e) { return []; }
+}
+
+function saveRecords(records) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+function openAddModal() {
+  const sel = document.getElementById('recordEq');
+  sel.innerHTML = EQUIPMENT.map(eq =>
+    '<option value="' + eq.id + '">' + eq.icon + ' ' + eq.name + '</option>'
+  ).join('');
+  document.getElementById('recordDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('recordCost').value = '';
+  document.getElementById('addModal').style.display = 'flex';
+  document.getElementById('recordEq').onchange = updateCostHint;
+  updateCostHint();
+}
+
+function updateCostHint() {
+  const eqId = document.getElementById('recordEq').value;
+  const eq = EQUIPMENT.find(e => e.id === eqId);
+  const p = getPrices();
+  const cost = calcSynthesis(eq, p);
+  document.getElementById('costHint').textContent = '当前市价合成成本: ' + fmt(cost) + ' U（留空则自动使用此值）';
+  document.getElementById('recordCost').placeholder = '默认 ' + fmt(cost) + ' U';
+}
+
+function closeAddModal() {
+  document.getElementById('addModal').style.display = 'none';
+}
+
+function saveRecord() {
+  const eqId = document.getElementById('recordEq').value;
+  const date = document.getElementById('recordDate').value;
+  let cost = parseFloat(document.getElementById('recordCost').value);
+  if (!date) { alert('请选择日期'); return; }
+  if (!cost || cost <= 0) {
+    const eq = EQUIPMENT.find(e => e.id === eqId);
+    cost = calcSynthesis(eq, getPrices());
+  }
+  const records = loadRecords();
+  records.push({ id: Date.now(), eqId: eqId, date: date, cost: cost });
+  records.sort((a, b) => b.id - a.id);
+  saveRecords(records);
+  closeAddModal();
+  renderPurchaseList();
+}
+
+function deleteRecord(id) {
+  let records = loadRecords();
+  records = records.filter(r => r.id !== id);
+  saveRecords(records);
+  renderPurchaseList();
+}
+
+function renderPurchaseList() {
+  const records = loadRecords();
+  const p = getPrices();
+  const el = document.getElementById('purchaseList');
+  if (!el) return;
+  if (records.length === 0) {
+    el.innerHTML = '<div class="empty-hint">还没有购买记录，点击上方按钮添加</div>';
+    return;
+  }
+  el.innerHTML = records.map(r => {
+    const eq = EQUIPMENT.find(e => e.id === r.eqId);
+    if (!eq) return '';
+    const daily = calcDailyNet(eq, p);
+    const days = daily > 0 ? r.cost / daily : Infinity;
+    let cls = days > 60 ? 'slow' : days > 30 ? 'medium' : 'fast';
+    return '<div class="purchase-item">' +
+      '<div class="pi-left">' +
+        '<span class="pi-name">' + eq.icon + ' ' + eq.name + '</span>' +
+        '<span class="pi-date">' + r.date + '</span>' +
+      '</div>' +
+      '<div class="pi-right">' +
+        '<div class="pi-cost">成本 ' + fmt(r.cost) + ' U</div>' +
+        '<div class="pi-payback ' + cls + '">预估回本 ' + (isFinite(days) ? fmt(days) + ' 天' : '∞') + '</div>' +
+      '</div>' +
+      '<button class="btn-del" onclick="deleteRecord(' + r.id + ')">×</button>' +
+    '</div>';
+  }).join('');
+}
+
+// Hook renderAll to also refresh records
+const _origRenderAll = renderAll;
+renderAll = function() {
+  _origRenderAll();
+  renderPurchaseList();
+};
+
+// Close modal on overlay click
+document.addEventListener('click', function(e) {
+  if (e.target.id === 'addModal') closeAddModal();
+});
 
 // 事件监听
 document.getElementById('goldPrice').addEventListener('input', renderAll);
