@@ -364,6 +364,9 @@ body {
 .purchase-item .pi-left { display: flex; flex-direction: column; gap: 2px; }
 .purchase-item .pi-name { font-weight: 700; font-size: 14px; }
 .purchase-item .pi-date { color: #aaa; font-size: 11px; }
+
+.pi-mats { color: #bbb; font-size: 10px; margin-top: 1px; }
+
 .purchase-item .pi-right { text-align: right; }
 .purchase-item .pi-cost { font-weight: 600; }
 .purchase-item .pi-payback { font-size: 11px; }
@@ -492,7 +495,20 @@ body {
     <h3>添加购买记录</h3>
     <select id="recordEq"></select>
     <input type="date" id="recordDate">
-    <input type="number" id="recordCost" step="0.01" placeholder="实际购买成本 (U)">
+    <div class="price-row" style="margin-bottom:10px">
+      <div class="price-item">
+        <label><span class="dot dot-gold"></span>金子价</label>
+        <input type="number" id="recGold" step="0.01" min="0" placeholder="买入价">
+      </div>
+      <div class="price-item">
+        <label><span class="dot dot-wood"></span>木头价</label>
+        <input type="number" id="recWood" step="0.01" min="0" placeholder="买入价">
+      </div>
+      <div class="price-item">
+        <label><span class="dot dot-fuel"></span>燃料价</label>
+        <input type="number" id="recFuel" step="0.01" min="0" placeholder="买入价">
+      </div>
+    </div>
     <div class="cost-auto" id="costHint"></div>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeAddModal()">取消</button>
@@ -830,12 +846,15 @@ function saveRecords(records) {
 }
 
 function openAddModal() {
+  const p = getPrices();
   const sel = document.getElementById('recordEq');
   sel.innerHTML = EQUIPMENT.map(eq =>
     '<option value="' + eq.id + '">' + eq.icon + ' ' + eq.name + '</option>'
   ).join('');
   document.getElementById('recordDate').value = new Date().toISOString().slice(0,10);
-  document.getElementById('recordCost').value = '';
+  document.getElementById('recGold').value = p.gold;
+  document.getElementById('recWood').value = p.wood;
+  document.getElementById('recFuel').value = p.fuel;
   document.getElementById('addModal').style.display = 'flex';
   document.getElementById('recordEq').onchange = updateCostHint;
   updateCostHint();
@@ -844,10 +863,17 @@ function openAddModal() {
 function updateCostHint() {
   const eqId = document.getElementById('recordEq').value;
   const eq = EQUIPMENT.find(e => e.id === eqId);
-  const p = getPrices();
-  const cost = calcSynthesis(eq, p);
-  document.getElementById('costHint').textContent = '当前市价合成成本: ' + fmt(cost) + ' U（留空则自动使用此值）';
-  document.getElementById('recordCost').placeholder = '默认 ' + fmt(cost) + ' U';
+  const g = parseFloat(document.getElementById('recGold').value) || 0;
+  const w = parseFloat(document.getElementById('recWood').value) || 0;
+  const f = parseFloat(document.getElementById('recFuel').value) || 0;
+  const cost = eq.synth.gold * g + eq.synth.wood * w + eq.synth.fuel * f;
+  document.getElementById('costHint').textContent =
+    '装备合成成本 = ' + eq.synth.gold + '×' + fmt(g) + ' + ' +
+    eq.synth.wood + '×' + fmt(w) + ' + ' + eq.synth.fuel + '×' + fmt(f) +
+    ' = ' + fmt(cost) + ' U';
+  document.getElementById('recGold').oninput = updateCostHint;
+  document.getElementById('recWood').oninput = updateCostHint;
+  document.getElementById('recFuel').oninput = updateCostHint;
 }
 
 function closeAddModal() {
@@ -856,15 +882,19 @@ function closeAddModal() {
 
 function saveRecord() {
   const eqId = document.getElementById('recordEq').value;
+  const eq = EQUIPMENT.find(e => e.id === eqId);
   const date = document.getElementById('recordDate').value;
-  let cost = parseFloat(document.getElementById('recordCost').value);
+  const g = parseFloat(document.getElementById('recGold').value) || 0;
+  const w = parseFloat(document.getElementById('recWood').value) || 0;
+  const f = parseFloat(document.getElementById('recFuel').value) || 0;
   if (!date) { alert('请选择日期'); return; }
-  if (!cost || cost <= 0) {
-    const eq = EQUIPMENT.find(e => e.id === eqId);
-    cost = calcSynthesis(eq, getPrices());
-  }
+  if (!g && !w && !f) { alert('请填写采购价格'); return; }
+  const cost = eq.synth.gold * g + eq.synth.wood * w + eq.synth.fuel * f;
   const records = loadRecords();
-  records.push({ id: Date.now(), eqId: eqId, date: date, cost: cost });
+  records.push({
+    id: Date.now(), eqId: eqId, date: date,
+    goldPrice: g, woodPrice: w, fuelPrice: f, cost: cost
+  });
   records.sort((a, b) => b.id - a.id);
   saveRecords(records);
   closeAddModal();
@@ -893,10 +923,16 @@ function renderPurchaseList() {
     const daily = calcDailyNet(eq, p);
     const days = daily > 0 ? r.cost / daily : Infinity;
     let cls = days > 60 ? 'slow' : days > 30 ? 'medium' : 'fast';
+    // Show material prices if available (compat with old records)
+    let matInfo = '';
+    if (r.goldPrice !== undefined) {
+      matInfo = '<span class="pi-mats">G ' + fmt(r.goldPrice) + ' / W ' + fmt(r.woodPrice) + ' / F ' + fmt(r.fuelPrice) + '</span>';
+    }
     return '<div class="purchase-item">' +
       '<div class="pi-left">' +
         '<span class="pi-name">' + eq.icon + ' ' + eq.name + '</span>' +
         '<span class="pi-date">' + r.date + '</span>' +
+        matInfo +
       '</div>' +
       '<div class="pi-right">' +
         '<div class="pi-cost">成本 ' + fmt(r.cost) + ' U</div>' +
