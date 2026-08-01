@@ -437,11 +437,11 @@ body {
   <div class="section-title">材料价格（HERA 本位）</div>
   <div class="price-row">
     <div class="price-item">
-      <label><span class="dot dot-gold"></span>金子 GOLD</label>
+      <label><span class="dot dot-gold"></span>金子</label>
       <input type="number" id="goldPrice" value="0.91" step="0.01" min="0.01" placeholder="金子价格">
     </div>
     <div class="price-item">
-      <label><span class="dot dot-wood"></span>木头 WOOD</label>
+      <label><span class="dot dot-wood"></span>木头</label>
       <input type="number" id="woodPrice" value="0.89" step="0.01" min="0.01" placeholder="木头价格">
     </div>
     <div class="price-item">
@@ -720,8 +720,8 @@ function renderDetail(p) {
 
   let detailRows = `
     <div class="detail-row"><span class="dl">装备类型</span><span class="dv">${eq.icon} ${eq.name}</span></div>
-    <div class="detail-row"><span class="dl">合成 GOLD 成本</span><span class="dv">${eq.synth.gold} × ${fmt(p.gold)} = <b>${fmt(goldPart)}</b> U</span></div>
-    <div class="detail-row"><span class="dl">合成 WOOD 成本</span><span class="dv">${eq.synth.wood} × ${fmt(p.wood)} = <b>${fmt(woodPart)}</b> U</span></div>
+    <div class="detail-row"><span class="dl">合成金子成本</span><span class="dv">${eq.synth.gold} × ${fmt(p.gold)} = <b>${fmt(goldPart)}</b> U</span></div>
+    <div class="detail-row"><span class="dl">合成木头成本</span><span class="dv">${eq.synth.wood} × ${fmt(p.wood)} = <b>${fmt(woodPart)}</b> U</span></div>
     <div class="detail-row"><span class="dl">合成 燃料 成本</span><span class="dv">${eq.synth.fuel} × ${fmt(p.fuel)} = <b>${fmt(fuelPart)}</b> U</span></div>
     <div class="detail-row"><span class="dl">生产周期</span><span class="dv">${eq.cycleH >= 24 ? eq.cycleH/24 + ' 天/轮' : eq.cycleH + ' 小时/轮'}</span></div>
     <div class="detail-row"><span class="dl">每日轮次</span><span class="dv">${fmt(cyclesPerDay, 2)} 次</span></div>
@@ -734,12 +734,12 @@ function renderDetail(p) {
   } else {
     detailRows += `
       <div class="detail-row"><span class="dl">每轮燃料消耗</span><span class="dv">${eq.runFuelPerCycle} × ${fmt(p.fuel)} = <b>${fmt(eq.runFuelPerCycle * p.fuel)}</b> U</span></div>
-      <div class="detail-row"><span class="dl">每轮维修金 (GOLD)</span><span class="dv">${eq.repairGold} × ${fmt(p.gold)} = <b>${fmt(eq.repairGold * p.gold)}</b> U</span></div>
+      <div class="detail-row"><span class="dl">每轮维修金</span><span class="dv">${eq.repairGold} × ${fmt(p.gold)} = <b>${fmt(eq.repairGold * p.gold)}</b> U</span></div>
     `;
   }
 
   detailRows += `
-    <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${eq.outputType === 'gold' ? 'GOLD' : 'WOOD'} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> U</span></div>
+    <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${eq.outputType === 'gold' ? '金子' : '木头'} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> U</span></div>
     <div class="detail-row"><span class="dl">卖出扣3%手续费</span><span class="dv" style="color:var(--red)">−${fmt(grossPerCycle - grossAfterFee)} U</span></div>
     <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益(含手续费)</span><span class="dv highlight">${fmt(netPerCycle)} U</span></div>
     <div class="detail-row"><span class="dl">日净收益</span><span class="dv">${fmt(daily)} U</span></div>
@@ -753,11 +753,11 @@ function renderDetail(p) {
     <div class="cost-breakdown">
       <div class="cost-chip gold-chip">
         <div class="chip-amt">${fmt(goldPart)}</div>
-        <div class="chip-label">GOLD ${eq.synth.gold}×${fmt(p.gold)}</div>
+        <div class="chip-label">金子 ${eq.synth.gold}×${fmt(p.gold)}</div>
       </div>
       <div class="cost-chip wood-chip">
         <div class="chip-amt">${fmt(woodPart)}</div>
-        <div class="chip-label">WOOD ${eq.synth.wood}×${fmt(p.wood)}</div>
+        <div class="chip-label">木头 ${eq.synth.wood}×${fmt(p.wood)}</div>
       </div>
       <div class="cost-chip fuel-chip">
         <div class="chip-amt">${fmt(fuelPart)}</div>
@@ -791,7 +791,7 @@ function renderTable(p) {
     const days = calcPaybackDays(eq, p);
     const rate = calcMonthlyRate(eq, p);
     const cycleLabel = eq.cycleH >= 24 ? eq.cycleH/24 + '天' : eq.cycleH + 'h';
-    const outputLabel = eq.outputPerCycle + (eq.outputType === 'gold' ? ' GOLD' : ' WOOD');
+    const outputLabel = eq.outputPerCycle + (eq.outputType === 'gold' ? ' 金子' : ' 木头');
     return { eq, cost, netPerCycle, daily, monthly, days, rate, cycleLabel, outputLabel };
   });
 
