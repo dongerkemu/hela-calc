@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>海拉世界 · 装备计算器</title>
+<style>
+:root {
+  --bg: #f5f5f5;
+  --card: #fff;
+  --text: #333;
+  --sub: #999;
+  --gold: #e8a817;
+  --wood: #8b6914;
+  --fuel: #e05555;
+  --hero: #9c27b0;
+  --accent: #4a90d9;
+  --green: #27ae60;
+  --red: #e74c3c;
+  --border: #e8e8e8;
+  --shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 80px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: #fff;
+  padding: 20px 16px 24px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.header h1 { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 12px; opacity: .6; margin-top: 4px; }
+
+/* Price Input */
+.price-section {
+  margin: 16px;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.price-section .section-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #666;
+}
+.price-row {
+  display: flex;
+  gap: 10px;
+}
+.price-item {
+  flex: 1;
+  text-align: center;
+}
+.price-item label {
+  display: block;
+  font-size: 12px;
+  color: var(--sub);
+  margin-bottom: 4px;
+}
+.price-item label .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.dot-gold { background: var(--gold); }
+.dot-wood { background: var(--wood); }
+.dot-fuel { background: var(--fuel); }
+.dot-hero { background: var(--hero); }
+.price-item input {
+  width: 100%;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 4px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  background: #fafafa;
+  transition: border .2s;
+  -webkit-appearance: none;
+}
+.price-item input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: #fff;
+}
+.conversion-hint {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 11px;
+  color: #aaa;
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 6px;
+}
+.price-preset {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.price-preset button {
+  flex: 1;
+  min-width: 80px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+  transition: all .15s;
+}
+.price-preset button:active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* Summary Cards */
+.summary {
+  margin: 0 16px 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.summary-card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.summary-card .label {
+  font-size: 11px;
+  color: var(--sub);
+  margin-bottom: 4px;
+}
+.summary-card .value {
+  font-size: 22px;
+  font-weight: 800;
+}
+.summary-card .unit {
+  font-size: 12px;
+  color: var(--sub);
+  font-weight: 400;
+}
+.summary-card.total .value { color: #e67e22; }
+.summary-card.monthly .value { color: var(--green); }
+.summary-card.rate .value { color: var(--accent); }
+.summary-card.days .value { color: var(--red); }
+
+/* Equipment Selector */
+.eq-selector {
+  margin: 0 16px 12px;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.eq-selector::-webkit-scrollbar { display: none; }
+.eq-tab {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: #888;
+  cursor: pointer;
+  transition: all .2s;
+  white-space: nowrap;
+}
+.eq-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* Detail Card */
+.detail-card {
+  margin: 0 16px 16px;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.detail-card .eq-name {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.detail-card .eq-name .icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.icon-land { background: #fff3cd; }
+.icon-axe { background: #e8e8e8; }
+.icon-saw { background: #ffe0b2; }
+.icon-truck { background: #c8e6c9; }
+.icon-mine { background: #bbdefb; }
+
+.detail-rows { display: flex; flex-direction: column; gap: 8px; }
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.detail-row .dl { color: #888; }
+.detail-row .dv { font-weight: 600; }
+.detail-row .highlight { color: var(--green); font-weight: 700; }
+
+.cost-breakdown {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+.cost-chip {
+  flex: 1;
+  text-align: center;
+  padding: 8px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.cost-chip .chip-amt { font-size: 16px; margin-bottom: 2px; }
+.cost-chip .chip-label { color: #888; font-weight: 400; }
+.cost-chip.gold-chip { background: #fff8e1; color: #b8860b; }
+.cost-chip.wood-chip { background: #f1f8e9; color: #6b8e23; }
+.cost-chip.fuel-chip { background: #fce4ec; color: #c62828; }
+
+/* Formula */
+.formula-bar {
+  margin: 0 16px 16px;
+  background: var(--card);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+  font-size: 11px;
+  color: #999;
+  line-height: 1.7;
+}
+.formula-bar code {
+  background: #f0f0f0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: #555;
+}
+
+/* Comparison Table */
+.table-wrap {
+  margin: 0 16px 16px;
+  background: var(--card);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.table-wrap .table-title {
+  padding: 14px 16px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #555;
+}
+.comp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.comp-table th {
+  background: #f8f9fa;
+  padding: 10px 6px;
+  font-weight: 600;
+  color: #888;
+  font-size: 11px;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+.comp-table td {
+  padding: 10px 6px;
+  text-align: center;
+  border-bottom: 1px solid #f0f0f0;
+}
+.comp-table .eq-name-col {
+  text-align: left;
+  font-weight: 700;
+  font-size: 13px;
+}
+.comp-table tr:last-child td { border-bottom: none; }
+.comp-table .best { color: var(--green); font-weight: 700; }
+.comp-table .worst { color: var(--red); }
+.comp-table tr.row-selected { background: #e3f2fd; }
+
+
+/* Purchase Records */
+.purchase-section {
+  margin: 0 16px 16px;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.purchase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.btn-add {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+.purchase-list { display: flex; flex-direction: column; gap: 8px; }
+.purchase-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #fafafa;
+  border-radius: 10px;
+  font-size: 12px;
+}
+.purchase-item .pi-left { display: flex; flex-direction: column; gap: 2px; }
+.purchase-item .pi-name { font-weight: 700; font-size: 14px; }
+.purchase-item .pi-date { color: #aaa; font-size: 11px; }
+
+.pi-mats { color: #bbb; font-size: 10px; margin-top: 1px; }
+
+.purchase-item .pi-right { text-align: right; }
+.purchase-item .pi-cost { font-weight: 600; }
+.purchase-item .pi-payback { font-size: 11px; }
+.purchase-item .pi-payback.fast { color: var(--green); }
+.purchase-item .pi-payback.medium { color: #e67e22; }
+.purchase-item .pi-payback.slow { color: var(--red); }
+.btn-del {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 6px;
+  line-height: 1;
+}
+/* Modal */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  width: 90%;
+  max-width: 360px;
+}
+.modal-box h3 { font-size: 16px; margin-bottom: 14px; }
+.modal-box select, .modal-box input {
+  width: 100%; padding: 10px; border: 1.5px solid var(--border);
+  border-radius: 10px; font-size: 14px; margin-bottom: 10px;
+  background: #fafafa;
+  -webkit-appearance: none;
+}
+.modal-box .cost-auto {
+  font-size: 12px; color: #aaa; margin-bottom: 10px;
+  text-align: center;
+}
+.modal-btns { display: flex; gap: 8px; }
+.modal-btns button {
+  flex: 1; padding: 10px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  border: none;
+}
+.btn-save { background: var(--accent); color: #fff; }
+.btn-cancel { background: #eee; color: #666; }
+.empty-hint { text-align: center; color: #ccc; padding: 20px; font-size: 13px; }
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 20px;
+  font-size: 11px;
+  color: #ccc;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>海拉世界 · 装备计算器</h1>
+  <div class="sub">输入材料价格 → 自动计算合成成本 & 回本周期</div>
+</div>
+
+<div class="price-section">
+  <div class="section-title">材料价格（HERA 本位）</div>
+  <div class="price-row">
+    <div class="price-item">
+      <label><span class="dot dot-gold"></span>金子 GOLD</label>
+      <input type="number" id="goldPrice" value="0.91" step="0.01" min="0.01" placeholder="金子价格">
+    </div>
+    <div class="price-item">
+      <label><span class="dot dot-wood"></span>木头 WOOD</label>
+      <input type="number" id="woodPrice" value="0.89" step="0.01" min="0.01" placeholder="木头价格">
+    </div>
+    <div class="price-item">
+      <label><span class="dot dot-fuel"></span>燃料</label>
+      <input type="number" id="fuelPrice" value="0.20" step="0.01" min="0.01" placeholder="燃料价格">
+    </div>
+    <div class="price-item">
+      <label><span class="dot dot-hero"></span>种子(燃料)</label>
+      <input type="number" id="seedFuel" value="170" step="1" min="1" placeholder="每轮种子消耗燃料">
+    </div>
+  </div>
+</div>
+
+<div id="summary" class="summary">
+  <div class="summary-card total">
+    <div class="label">合成成本</div>
+    <div class="value">--<span class="unit"> U</span></div>
+  </div>
+  <div class="summary-card monthly">
+    <div class="label">每月净收益</div>
+    <div class="value">--<span class="unit"> U</span></div>
+  </div>
+  <div class="summary-card rate">
+    <div class="label">月化率</div>
+    <div class="value">--<span class="unit">%</span></div>
+  </div>
+  <div class="summary-card days">
+    <div class="label">回本天数</div>
+    <div class="value">--<span class="unit"> 天</span></div>
+  </div>
+</div>
+
+<div class="eq-selector" id="eqSelector"></div>
+
+<div class="detail-card" id="detailCard"></div>
+
+<div class="formula-bar" id="formulaBar"></div>
+
+<div class="purchase-section">
+  <div class="purchase-header">
+    <div class="section-title">购买记录</div>
+    <button class="btn-add" onclick="openAddModal()">+ 添加记录</button>
+  </div>
+  <div class="purchase-list" id="purchaseList"></div>
+</div>
+
+<div class="modal-overlay" id="addModal" style="display:none">
+  <div class="modal-box">
+    <h3>添加购买记录</h3>
+    <select id="recordEq"></select>
+    <input type="date" id="recordDate">
+    <div class="price-row" style="margin-bottom:10px">
+      <div class="price-item">
+        <label><span class="dot dot-gold"></span>金子价</label>
+        <input type="number" id="recGold" step="0.01" min="0" placeholder="买入价">
+      </div>
+      <div class="price-item">
+        <label><span class="dot dot-wood"></span>木头价</label>
+        <input type="number" id="recWood" step="0.01" min="0" placeholder="买入价">
+      </div>
+      <div class="price-item">
+        <label><span class="dot dot-fuel"></span>燃料价</label>
+        <input type="number" id="recFuel" step="0.01" min="0" placeholder="买入价">
+      </div>
+    </div>
+    <div class="cost-auto" id="costHint"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeAddModal()">取消</button>
+      <button class="btn-save" onclick="saveRecord()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <div class="table-title">全装备对比</div>
+  <div style="overflow-x:auto">
+    <table class="comp-table" id="compTable"></table>
+  </div>
+</div>
+
+<div class="footer">数据基于海拉世界游戏内实际参数 · 仅供参考</div>
+
+<script>
+// ==================== 装备参数（来源：create_excel.py 设备参数表） ====================
+// 合成成本全部使用"燃料"计价（非 HERO），1 HERO = 0.7 燃料
+const EQUIPMENT = [
+  {
+    id: 'land',
+    name: '土地',
+    icon: '🌾',
+    iconClass: 'icon-land',
+    synth: { gold: 120, wood: 1000, fuel: 80 },
+    cycleH: 168,
+    outputPerCycle: 240,
+    outputType: 'gold',
+    runFuelPerCycle: 0,
+    repairGold: 0,
+    isFarm: true,
+    seedFuel: 170,
+  },
+  {
+    id: 'stone_axe',
+    name: '石斧',
+    icon: '🪓',
+    iconClass: 'icon-axe',
+    synth: { gold: 110, wood: 700, fuel: 80 },
+    cycleH: 6,
+    outputPerCycle: 7,
+    outputType: 'wood',
+    runFuelPerCycle: 4,
+    repairGold: 1.2,
+  },
+  {
+    id: 'hand_axe',
+    name: '手斧',
+    icon: '🔧',
+    iconClass: 'icon-axe',
+    synth: { gold: 700, wood: 3500, fuel: 150 },
+    cycleH: 6,
+    outputPerCycle: 38,
+    outputType: 'wood',
+    runFuelPerCycle: 16,
+    repairGold: 10.4,
+  },
+  {
+    id: 'chainsaw',
+    name: '电锯',
+    icon: '⚡',
+    iconClass: 'icon-saw',
+    synth: { gold: 1800, wood: 10000, fuel: 360 },
+    cycleH: 6,
+    outputPerCycle: 160,
+    outputType: 'wood',
+    runFuelPerCycle: 36,
+    repairGold: 9.0,
+  },
+  {
+    id: 'lumber_truck',
+    name: '伐木车',
+    icon: '🚛',
+    iconClass: 'icon-truck',
+    synth: { gold: 4000, wood: 22500, fuel: 1000 },
+    cycleH: 6,
+    outputPerCycle: 316,
+    outputType: 'wood',
+    runFuelPerCycle: 72,
+    repairGold: 16.2,
+  },
+  {
+    id: 'mine_truck',
+    name: '采矿车',
+    icon: '⛏️',
+    iconClass: 'icon-mine',
+    synth: { gold: 5000, wood: 24400, fuel: 1000 },
+    cycleH: 6,
+    outputPerCycle: 141,
+    outputType: 'gold',
+    runFuelPerCycle: 80,
+    repairGold: 16.2,
+  },
+];
+
+
+const FEE_RATE = 0.03;  // 3% 卖出手续费
+
+let currentEq = EQUIPMENT[0];
+
+// ==================== 计算函数 ====================
+function getPrices() {
+  return {
+    gold: parseFloat(document.getElementById('goldPrice').value) || 0,
+    wood: parseFloat(document.getElementById('woodPrice').value) || 0,
+    fuel: parseFloat(document.getElementById('fuelPrice').value) || 0,
+    seedFuel: parseFloat(document.getElementById('seedFuel').value) || 170,
+  };
+}
+
+function calcSynthesis(eq, p) {
+  return eq.synth.gold * p.gold + eq.synth.wood * p.wood + eq.synth.fuel * p.fuel;
+}
+
+function calcNetPerCycle(eq, p, withFee) {
+  if (withFee === undefined) withFee = true;
+  const outputPrice = eq.outputType === 'gold' ? p.gold : p.wood;
+  const gross = eq.outputPerCycle * outputPrice * (withFee ? (1 - FEE_RATE) : 1);
+  if (eq.isFarm) {
+    return gross - p.seedFuel * p.fuel;
+  }
+  return gross - eq.runFuelPerCycle * p.fuel - eq.repairGold * p.gold;
+}
+
+function calcDailyNet(eq, p, withFee) {
+  if (withFee === undefined) withFee = true;
+  const netPerCycle = calcNetPerCycle(eq, p, withFee);
+  const cyclesPerDay = 24 / eq.cycleH;
+  return netPerCycle * cyclesPerDay;
+}
+
+function calcMonthlyNet(eq, p, withFee) {
+  if (withFee === undefined) withFee = true;
+  return calcDailyNet(eq, p, withFee) * 30;
+}
+
+function calcPaybackDays(eq, p, withFee) {
+  if (withFee === undefined) withFee = true;
+  const daily = calcDailyNet(eq, p, withFee);
+  if (daily <= 0) return Infinity;
+  return calcSynthesis(eq, p) / daily;
+}
+
+function calcMonthlyRate(eq, p) {
+  const cost = calcSynthesis(eq, p);
+  if (cost <= 0) return 0;
+  return (calcMonthlyNet(eq, p) / cost) * 100;
+}
+
+// ==================== UI 渲染 ====================
+function fmt(n, decimals) {
+  if (decimals === undefined) decimals = n < 10 ? 2 : n < 100 ? 1 : 0;
+  if (!isFinite(n)) return '∞';
+  if (Math.abs(n) < 0.005 && n !== 0) return '0.00';
+  return n.toFixed(decimals);
+}
+
+function renderAll() {
+  const p = getPrices();
+  renderSummary(p);
+  renderDetail(p);
+  renderTable(p);
+}
+
+function renderSummary(p) {
+  const eq = currentEq;
+  const cost = calcSynthesis(eq, p);
+  const monthly = calcMonthlyNet(eq, p);
+  const rate = calcMonthlyRate(eq, p);
+  const days = calcPaybackDays(eq, p);
+  const daysNoFee = calcPaybackDays(eq, p, false);
+  document.getElementById('summary').innerHTML = `
+    <div class="summary-card total">
+      <div class="label">${eq.name} · 合成成本</div>
+      <div class="value">${fmt(cost)}<span class="unit"> U</span></div>
+    </div>
+    <div class="summary-card monthly">
+      <div class="label">每月净收益(含3%手续费)</div>
+      <div class="value">${fmt(monthly)}<span class="unit"> U</span></div>
+    </div>
+    <div class="summary-card rate">
+      <div class="label">月化率</div>
+      <div class="value" style="color:${rate >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(rate)}<span class="unit">%</span></div>
+    </div>
+    <div class="summary-card days">
+      <div class="label">回本天数(含3%手续费)</div>
+      <div class="value">${isFinite(days) ? fmt(days) : '∞'}<span class="unit"> 天</span></div>
+      <div class="unit" style="font-size:10px;color:#aaa;display:block">不含手续费 ${isFinite(daysNoFee) ? fmt(daysNoFee) : '∞'} 天</div>
+    </div>
+  `;
+}
+
+function renderDetail(p) {
+  const eq = currentEq;
+  const cost = calcSynthesis(eq, p);
+  const netPerCycle = calcNetPerCycle(eq, p);
+  const daily = calcDailyNet(eq, p);
+  const monthly = calcMonthlyNet(eq, p);
+  const days = calcPaybackDays(eq, p);
+
+  const goldPart = eq.synth.gold * p.gold;
+  const woodPart = eq.synth.wood * p.wood;
+  const fuelPart = eq.synth.fuel * p.fuel;
+
+  const cyclesPerDay = 24 / eq.cycleH;
+  const outputPrice = eq.outputType === 'gold' ? p.gold : p.wood;
+  const grossPerCycle = eq.outputPerCycle * outputPrice;
+  const grossAfterFee = grossPerCycle * (1 - FEE_RATE);
+
+  let detailRows = `
+    <div class="detail-row"><span class="dl">装备类型</span><span class="dv">${eq.icon} ${eq.name}</span></div>
+    <div class="detail-row"><span class="dl">合成 GOLD 成本</span><span class="dv">${eq.synth.gold} × ${fmt(p.gold)} = <b>${fmt(goldPart)}</b> U</span></div>
+    <div class="detail-row"><span class="dl">合成 WOOD 成本</span><span class="dv">${eq.synth.wood} × ${fmt(p.wood)} = <b>${fmt(woodPart)}</b> U</span></div>
+    <div class="detail-row"><span class="dl">合成 燃料 成本</span><span class="dv">${eq.synth.fuel} × ${fmt(p.fuel)} = <b>${fmt(fuelPart)}</b> U</span></div>
+    <div class="detail-row"><span class="dl">生产周期</span><span class="dv">${eq.cycleH >= 24 ? eq.cycleH/24 + ' 天/轮' : eq.cycleH + ' 小时/轮'}</span></div>
+    <div class="detail-row"><span class="dl">每日轮次</span><span class="dv">${fmt(cyclesPerDay, 2)} 次</span></div>
+  `;
+
+  if (eq.isFarm) {
+    detailRows += `
+      <div class="detail-row"><span class="dl">每轮种子 (燃料)</span><span class="dv">${p.seedFuel} × ${fmt(p.fuel)} = <b>${fmt(p.seedFuel * p.fuel)}</b> U</span></div>
+    `;
+  } else {
+    detailRows += `
+      <div class="detail-row"><span class="dl">每轮燃料消耗</span><span class="dv">${eq.runFuelPerCycle} × ${fmt(p.fuel)} = <b>${fmt(eq.runFuelPerCycle * p.fuel)}</b> U</span></div>
+      <div class="detail-row"><span class="dl">每轮维修金 (GOLD)</span><span class="dv">${eq.repairGold} × ${fmt(p.gold)} = <b>${fmt(eq.repairGold * p.gold)}</b> U</span></div>
+    `;
+  }
+
+  detailRows += `
+    <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${eq.outputType === 'gold' ? 'GOLD' : 'WOOD'} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> U</span></div>
+    <div class="detail-row"><span class="dl">卖出扣3%手续费</span><span class="dv" style="color:var(--red)">−${fmt(grossPerCycle - grossAfterFee)} U</span></div>
+    <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益(含手续费)</span><span class="dv highlight">${fmt(netPerCycle)} U</span></div>
+    <div class="detail-row"><span class="dl">日净收益</span><span class="dv">${fmt(daily)} U</span></div>
+    <div class="detail-row"><span class="dl">月净收益 (30天)</span><span class="dv">${fmt(monthly)} U</span></div>
+    <div class="detail-row"><span class="dl">回本天数(含3%手续费)</span><span class="dv" style="color:${days < 60 ? 'var(--green)' : days < 120 ? '#e67e22' : 'var(--red)'}">${isFinite(days) ? fmt(days) + ' 天' : '永不回本'}</span></div>
+    <div class="detail-row"><span class="dl">回本天数(不含手续费)</span><span class="dv" style="color:#aaa">${isFinite(calcPaybackDays(eq, p, false)) ? fmt(calcPaybackDays(eq, p, false)) + ' 天' : '永不回本'}</span></div>
+  `;
+
+  document.getElementById('detailCard').innerHTML = `
+    <div class="eq-name"><span class="icon ${eq.iconClass}">${eq.icon}</span>${eq.name} · 详细数据</div>
+    <div class="cost-breakdown">
+      <div class="cost-chip gold-chip">
+        <div class="chip-amt">${fmt(goldPart)}</div>
+        <div class="chip-label">GOLD ${eq.synth.gold}×${fmt(p.gold)}</div>
+      </div>
+      <div class="cost-chip wood-chip">
+        <div class="chip-amt">${fmt(woodPart)}</div>
+        <div class="chip-label">WOOD ${eq.synth.wood}×${fmt(p.wood)}</div>
+      </div>
+      <div class="cost-chip fuel-chip">
+        <div class="chip-amt">${fmt(fuelPart)}</div>
+        <div class="chip-label">燃料 ${eq.synth.fuel}×${fmt(p.fuel)}</div>
+      </div>
+    </div>
+    <div class="detail-rows">${detailRows}</div>
+  `;
+
+  // Formula
+  let formula;
+  if (eq.isFarm) {
+    formula = `<code>合成成本 = ${eq.synth.gold}×金子 + ${eq.synth.wood}×木头 + ${eq.synth.fuel}×燃料</code><br>
+               <code>每轮(${eq.cycleH/24}天)净收益 = ${eq.outputPerCycle}×金子 − ${p.seedFuel}×燃料</code><br>
+               <code>日净收益 = 每轮净收益(已扣3%手续费) / ${eq.cycleH/24}</code>`;
+  } else {
+    formula = `<code>合成成本 = ${eq.synth.gold}×金子 + ${eq.synth.wood}×木头 + ${eq.synth.fuel}×燃料</code><br>
+               <code>每轮(${eq.cycleH}h)净收益 = ${eq.outputPerCycle}×${eq.outputType === 'gold' ? '金子' : '木头'} − ${eq.runFuelPerCycle}×燃料 − ${eq.repairGold}×金子</code><br>
+               <code>日净收益 = 每轮净收益(已扣3%手续费) × ${cyclesPerDay}</code>`;
+  }
+  formula += `<br><code>月化率 = 月净收益 / 合成成本 × 100% &nbsp;|&nbsp; 回本天数 = 合成成本 / 日净收益</code>`;
+  document.getElementById('formulaBar').innerHTML = formula;
+}
+
+function renderTable(p) {
+  const rows = EQUIPMENT.map(eq => {
+    const cost = calcSynthesis(eq, p);
+    const netPerCycle = calcNetPerCycle(eq, p);
+    const daily = calcDailyNet(eq, p);
+    const monthly = calcMonthlyNet(eq, p);
+    const days = calcPaybackDays(eq, p);
+    const rate = calcMonthlyRate(eq, p);
+    const cycleLabel = eq.cycleH >= 24 ? eq.cycleH/24 + '天' : eq.cycleH + 'h';
+    const outputLabel = eq.outputPerCycle + (eq.outputType === 'gold' ? ' GOLD' : ' WOOD');
+    return { eq, cost, netPerCycle, daily, monthly, days, rate, cycleLabel, outputLabel };
+  });
+
+  const bestRate = Math.max(...rows.map(r => r.rate));
+  const worstRate = Math.min(...rows.map(r => r.rate));
+  const bestDays = Math.min(...rows.map(r => isFinite(r.days) ? r.days : Infinity));
+  const worstDays = Math.max(...rows.map(r => isFinite(r.days) ? r.days : 0));
+
+  let html = `<thead><tr>
+    <th>装备</th><th>周期</th><th>产出/轮</th><th>合成成本</th><th>月净收益</th><th>月化率</th><th>回本(含3%手续费)</th>
+  </tr></thead><tbody>`;
+
+  rows.forEach(r => {
+    const sel = r.eq.id === currentEq.id ? ' row-selected' : '';
+    const rateClass = r.rate === bestRate ? ' best' : r.rate === worstRate ? ' worst' : '';
+    const daysClass = r.days === bestDays && isFinite(r.days) ? ' best' : r.days === worstDays ? ' worst' : '';
+    html += `<tr class="${sel}" onclick="selectEq('${r.eq.id}')">
+      <td class="eq-name-col">${r.eq.icon} ${r.eq.name}</td>
+      <td>${r.cycleLabel}</td>
+      <td>${r.outputLabel}</td>
+      <td>${fmt(r.cost)}</td>
+      
+      <td>${fmt(r.monthly)}</td>
+      <td class="${rateClass}">${fmt(r.rate)}%</td>
+      <td class="${daysClass}">${isFinite(r.days) ? fmt(r.days) + '天' : '∞'}</td>
+    </tr>`;
+  });
+
+  html += '</tbody>';
+  document.getElementById('compTable').innerHTML = html;
+}
+
+function renderTabs() {
+  document.getElementById('eqSelector').innerHTML = EQUIPMENT.map(eq =>
+    `<div class="eq-tab${eq.id === currentEq.id ? ' active' : ''}" onclick="selectEq('${eq.id}')">${eq.icon} ${eq.name}</div>`
+  ).join('');
+}
+
+function selectEq(id) {
+  currentEq = EQUIPMENT.find(e => e.id === id);
+  renderAll();
+  renderTabs();
+}
+
+
+// ==================== 购买记录 (localStorage) ====================
+const STORAGE_KEY = 'hela_purchase_records';
+
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch(e) { return []; }
+}
+
+function saveRecords(records) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+function openAddModal() {
+  const p = getPrices();
+  const sel = document.getElementById('recordEq');
+  sel.innerHTML = EQUIPMENT.map(eq =>
+    '<option value="' + eq.id + '">' + eq.icon + ' ' + eq.name + '</option>'
+  ).join('');
+  document.getElementById('recordDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('recGold').value = p.gold;
+  document.getElementById('recWood').value = p.wood;
+  document.getElementById('recFuel').value = p.fuel;
+  document.getElementById('addModal').style.display = 'flex';
+  document.getElementById('recordEq').onchange = updateCostHint;
+  updateCostHint();
+}
+
+function updateCostHint() {
+  const eqId = document.getElementById('recordEq').value;
+  const eq = EQUIPMENT.find(e => e.id === eqId);
+  const g = parseFloat(document.getElementById('recGold').value) || 0;
+  const w = parseFloat(document.getElementById('recWood').value) || 0;
+  const f = parseFloat(document.getElementById('recFuel').value) || 0;
+  const cost = eq.synth.gold * g + eq.synth.wood * w + eq.synth.fuel * f;
+  document.getElementById('costHint').textContent =
+    '装备合成成本 = ' + eq.synth.gold + '×' + fmt(g) + ' + ' +
+    eq.synth.wood + '×' + fmt(w) + ' + ' + eq.synth.fuel + '×' + fmt(f) +
+    ' = ' + fmt(cost) + ' U';
+  document.getElementById('recGold').oninput = updateCostHint;
+  document.getElementById('recWood').oninput = updateCostHint;
+  document.getElementById('recFuel').oninput = updateCostHint;
+}
+
+function closeAddModal() {
+  document.getElementById('addModal').style.display = 'none';
+}
+
+function saveRecord() {
+  const eqId = document.getElementById('recordEq').value;
+  const eq = EQUIPMENT.find(e => e.id === eqId);
+  const date = document.getElementById('recordDate').value;
+  const g = parseFloat(document.getElementById('recGold').value) || 0;
+  const w = parseFloat(document.getElementById('recWood').value) || 0;
+  const f = parseFloat(document.getElementById('recFuel').value) || 0;
+  if (!date) { alert('请选择日期'); return; }
+  if (!g && !w && !f) { alert('请填写采购价格'); return; }
+  const cost = eq.synth.gold * g + eq.synth.wood * w + eq.synth.fuel * f;
+  const records = loadRecords();
+  records.push({
+    id: Date.now(), eqId: eqId, date: date,
+    goldPrice: g, woodPrice: w, fuelPrice: f, cost: cost
+  });
+  records.sort((a, b) => b.id - a.id);
+  saveRecords(records);
+  closeAddModal();
+  renderPurchaseList();
+}
+
+function deleteRecord(id) {
+  let records = loadRecords();
+  records = records.filter(r => r.id !== id);
+  saveRecords(records);
+  renderPurchaseList();
+}
+
+function renderPurchaseList() {
+  const records = loadRecords();
+  const p = getPrices();
+  const el = document.getElementById('purchaseList');
+  if (!el) return;
+  if (records.length === 0) {
+    el.innerHTML = '<div class="empty-hint">还没有购买记录，点击上方按钮添加</div>';
+    return;
+  }
+  el.innerHTML = records.map(r => {
+    const eq = EQUIPMENT.find(e => e.id === r.eqId);
+    if (!eq) return '';
+    const daily = calcDailyNet(eq, p, true);
+    const dailyNoFee = calcDailyNet(eq, p, false);
+    const days = daily > 0 ? r.cost / daily : Infinity;
+    const daysNoFee = dailyNoFee > 0 ? r.cost / dailyNoFee : Infinity;
+    let cls = days > 60 ? 'slow' : days > 30 ? 'medium' : 'fast';
+    // Show material prices if available (compat with old records)
+    let matInfo = '';
+    if (r.goldPrice !== undefined) {
+      matInfo = '<span class="pi-mats">G ' + fmt(r.goldPrice) + ' / W ' + fmt(r.woodPrice) + ' / F ' + fmt(r.fuelPrice) + '</span>';
+    }
+    return '<div class="purchase-item">' +
+      '<div class="pi-left">' +
+        '<span class="pi-name">' + eq.icon + ' ' + eq.name + '</span>' +
+        '<span class="pi-date">' + r.date + '</span>' +
+        matInfo +
+      '</div>' +
+      '<div class="pi-right">' +
+        '<div class="pi-cost">成本 ' + fmt(r.cost) + ' U</div>' +
+        '<div class="pi-payback ' + cls + '">含手续费 ' + (isFinite(days) ? fmt(days) + ' 天' : '∞') + '</div>' +
+        '<div class="pi-payback" style="color:#bbb;font-size:10px">不含 ' + (isFinite(daysNoFee) ? fmt(daysNoFee) + ' 天' : '∞') + '</div>' +
+      '</div>' +
+      '<button class="btn-del" onclick="deleteRecord(' + r.id + ')">×</button>' +
+    '</div>';
+  }).join('');
+}
+
+// Hook renderAll to also refresh records
+const _origRenderAll = renderAll;
+renderAll = function() {
+  _origRenderAll();
+  renderPurchaseList();
+};
+
+// Close modal on overlay click
+document.addEventListener('click', function(e) {
+  if (e.target.id === 'addModal') closeAddModal();
+});
+
+// 事件监听
+document.getElementById('goldPrice').addEventListener('input', renderAll);
+document.getElementById('woodPrice').addEventListener('input', renderAll);
+document.getElementById('fuelPrice').addEventListener('input', renderAll);
+document.getElementById('seedFuel').addEventListener('input', renderAll);
+
+// 初始化
+window.onerror = function(msg, url, line) {
+  document.body.innerHTML = '<div style=\"padding:20px;color:red;font-size:14px\"><b>JS Error:</b><br>' + msg + '<br>Line: ' + line + '<br><br>请截图发给开发者</div>';
+};
+try {
+  renderTabs();
+  renderAll();
+} catch(e) {
+  document.body.innerHTML = '<div style=\"padding:20px;color:red;font-size:14px\"><b>JS Error:</b><br>' + e.message + '<br><br>请截图发给开发者</div>';
+}
+</script>
+
+</body>
+</html>
