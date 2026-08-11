@@ -1032,16 +1032,138 @@ document.getElementById('goldPrice').addEventListener('input', renderAll);
 document.getElementById('woodPrice').addEventListener('input', renderAll);
 document.getElementById('fuelPrice').addEventListener('input', renderAll);
 
-// 初始化
-window.onerror = function(msg, url, line) {
-  document.body.innerHTML = '<div style=\"padding:20px;color:red;font-size:14px\"><b>JS Error:</b><br>' + msg + '<br>Line: ' + line + '<br><br>请截图发给开发者</div>';
-};
-try {
-  renderTabs();
-  renderAll();
-} catch(e) {
-  document.body.innerHTML = '<div style=\"padding:20px;color:red;font-size:14px\"><b>JS Error:</b><br>' + e.message + '<br><br>请截图发给开发者</div>';
+// ==================== 参数配置 ====================
+const DEFAULT_EQUIPMENT = JSON.parse(JSON.stringify(EQUIPMENT));
+const DEFAULT_FEE_RATE = 0.03;
+
+function loadConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('hela_config'));
+    if (saved && saved.equipment) {
+      for (let i = 0; i < EQUIPMENT.length; i++) {
+        if (saved.equipment[i]) {
+          Object.assign(EQUIPMENT[i], saved.equipment[i]);
+        }
+      }
+      if (saved.feeRate !== undefined) {
+        window._feeRate = saved.feeRate;
+      }
+    }
+  } catch(e) {}
 }
+
+function saveConfigData() {
+  const data = {
+    equipment: EQUIPMENT.map(eq => ({
+      id: eq.id,
+      synth: { gold: eq.synth.gold, wood: eq.synth.wood, fuel: eq.synth.fuel },
+      cycleH: eq.cycleH,
+      outputPerCycle: eq.outputPerCycle,
+      outputType: eq.outputType,
+      runFuelPerCycle: eq.runFuelPerCycle,
+      repairGold: eq.repairGold,
+      seedFuel: eq.seedFuel,
+      isFarm: eq.isFarm,
+    })),
+    feeRate: parseFloat(document.getElementById('cfgFeeRate').value) || 0.03,
+  };
+  localStorage.setItem('hela_config', JSON.stringify(data));
+}
+
+function openConfig() {
+  const el = document.getElementById('configBody');
+  let html = '<div class="config-group"><h3>全局参数</h3>';
+  html += '<div class="config-row"><div class="config-field">';
+  html += '<label>卖出手续费率</label>';
+  html += '<input type="number" id="cfgFeeRate" step="0.001" min="0" max="1" value="' + (window._feeRate !== undefined ? window._feeRate : FEE_RATE) + '">';
+  html += '</div><div class="config-field"></div><div class="config-field"></div></div>';
+  html += '</div>';
+  EQUIPMENT.forEach((eq, idx) => {
+    html += '<div class="config-group"><h3>' + eq.icon + ' ' + eq.name + '</h3>';
+    html += '<div class="config-row">';
+    html += '<div class="config-field"><label>合成·金子</label><input type="number" id="cfg_' + idx + '_sg" value="' + eq.synth.gold + '" step="1"></div>';
+    html += '<div class="config-field"><label>合成·木头</label><input type="number" id="cfg_' + idx + '_sw" value="' + eq.synth.wood + '" step="1"></div>';
+    html += '<div class="config-field"><label>合成·燃料</label><input type="number" id="cfg_' + idx + '_sf" value="' + eq.synth.fuel + '" step="1"></div>';
+    html += '</div>';
+    html += '<div class="config-row">';
+    html += '<div class="config-field"><label>周期(小时)</label><input type="number" id="cfg_' + idx + '_ch" value="' + eq.cycleH + '" step="1"></div>';
+    html += '<div class="config-field"><label>产出/轮</label><input type="number" id="cfg_' + idx + '_op" value="' + eq.outputPerCycle + '" step="1"></div>';
+    html += '<div class="config-field"><label>产出类型</label><select id="cfg_' + idx + '_ot"><option value="gold"' + (eq.outputType === 'gold' ? ' selected' : '') + '>金子</option><option value="wood"' + (eq.outputType === 'wood' ? ' selected' : '') + '>木头</option></select></div>';
+    html += '</div>';
+    if (!eq.isFarm) {
+      html += '<div class="config-row">';
+      html += '<div class="config-field"><label>燃料消耗/轮</label><input type="number" id="cfg_' + idx + '_rf" value="' + eq.runFuelPerCycle + '" step="0.1"></div>';
+      html += '<div class="config-field"><label>维修金子/轮</label><input type="number" id="cfg_' + idx + '_rg" value="' + eq.repairGold + '" step="0.1"></div>';
+      html += '<div class="config-field"></div>';
+      html += '</div>';
+    } else {
+      html += '<div class="config-row">';
+      html += '<div class="config-field"><label>种子燃料/轮</label><input type="number" id="cfg_' + idx + '_sd" value="' + eq.seedFuel + '" step="1"></div>';
+      html += '<div class="config-field"></div><div class="config-field"></div>';
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  el.innerHTML = html;
+  document.getElementById('configPanel').classList.add('show');
+}
+
+function closeConfig() {
+  document.getElementById('configPanel').classList.remove('show');
+}
+
+function saveConfig() {
+  EQUIPMENT.forEach((eq, idx) => {
+    eq.synth.gold = parseInt(document.getElementById('cfg_' + idx + '_sg').value) || 0;
+    eq.synth.wood = parseInt(document.getElementById('cfg_' + idx + '_sw').value) || 0;
+    eq.synth.fuel = parseInt(document.getElementById('cfg_' + idx + '_sf').value) || 0;
+    eq.cycleH = parseInt(document.getElementById('cfg_' + idx + '_ch').value) || 1;
+    eq.outputPerCycle = parseInt(document.getElementById('cfg_' + idx + '_op').value) || 0;
+    eq.outputType = document.getElementById('cfg_' + idx + '_ot').value;
+    if (!eq.isFarm) {
+      eq.runFuelPerCycle = parseFloat(document.getElementById('cfg_' + idx + '_rf').value) || 0;
+      eq.repairGold = parseFloat(document.getElementById('cfg_' + idx + '_rg').value) || 0;
+    } else {
+      eq.seedFuel = parseInt(document.getElementById('cfg_' + idx + '_sd').value) || 0;
+    }
+  });
+  window._feeRate = parseFloat(document.getElementById('cfgFeeRate').value) || 0.03;
+  saveConfigData();
+  closeConfig();
+  renderAll();
+  renderTabs();
+}
+
+function resetConfig() {
+  if (!confirm('确定恢复所有参数为默认值？')) return;
+  for (let i = 0; i < EQUIPMENT.length; i++) {
+    Object.assign(EQUIPMENT[i], JSON.parse(JSON.stringify(DEFAULT_EQUIPMENT[i])));
+  }
+  window._feeRate = DEFAULT_FEE_RATE;
+  localStorage.removeItem('hela_config');
+  closeConfig();
+  renderAll();
+  renderTabs();
+}
+
+// Override calcNetPerCycle to use configurable fee rate
+const _origCalcNetPerCycle2 = calcNetPerCycle;
+calcNetPerCycle = function(eq, p, withFee) {
+  if (withFee === undefined) withFee = true;
+  const outputPrice = eq.outputType === 'gold' ? p.gold : p.wood;
+  const rate = (window._feeRate !== undefined) ? window._feeRate : FEE_RATE;
+  const gross = eq.outputPerCycle * outputPrice * (withFee ? (1 - rate) : 1);
+  if (eq.isFarm) {
+    return gross - eq.seedFuel * p.fuel;
+  }
+  return gross - eq.runFuelPerCycle * p.fuel - eq.repairGold * p.gold;
+};
+
+// 初始化
+loadConfig();
+renderTabs();
+renderAll();
+
 </script>
 
 </body>
