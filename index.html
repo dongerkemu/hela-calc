@@ -837,10 +837,10 @@ function renderDetail(p) {
   detailRows += `
     <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${eq.outputType === 'gold' ? 'GOLD' : 'WOOD'} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> U</span></div>
     <div class="detail-row"><span class="dl">卖出扣3%手续费</span><span class="dv" style="color:var(--red)">−${fmt(grossPerCycle - grossAfterFee)} U</span></div>
-    <div class="detail-row" style="background:#fff8e1"><span class="dl">官方挂机费</span><span class="dv" style="color:#b8860b">每天 ${Number.isInteger(afkOpsPerDay) ? afkOpsPerDay : fmt(afkOpsPerDay)} 次 × ${eq.afkGoldPerOp} 金 × ${fmt(p.gold)} = <b>−${fmt(afkDaily)} U/天</b> · 月 −${fmt(afkMonthly)} U</span></div>
-    <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益(含3%费)</span><span class="dv highlight">${fmt(netPerCycle)} U</span></div>
-    <div class="detail-row"><span class="dl">日净收益(3%费+挂机费已扣)</span><span class="dv">${fmt(daily)} U</span></div>
-    <div class="detail-row"><span class="dl">月净收益(30天, 3%费+挂机费已扣)</span><span class="dv">${fmt(monthly)} U</span></div>
+    <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益 · 可提现额(已扣3%费)</span><span class="dv highlight">${fmt(netPerCycle)} U</span></div>
+    <div class="detail-row" style="background:#fff8e1"><span class="dl">提现后付挂机费(转公司)</span><span class="dv" style="color:#b8860b">每天 ${Number.isInteger(afkOpsPerDay) ? afkOpsPerDay : fmt(afkOpsPerDay)} 次 × ${eq.afkGoldPerOp} 金 × ${fmt(p.gold)} = <b>−${fmt(afkDaily)} U/天</b> · 月 −${fmt(afkMonthly)} U</span></div>
+    <div class="detail-row"><span class="dl">日净收益(到手额−挂机费)</span><span class="dv">${fmt(daily)} U</span></div>
+    <div class="detail-row"><span class="dl">月净收益(30天, 到手额−挂机费)</span><span class="dv">${fmt(monthly)} U</span></div>
     <div class="detail-row"><span class="dl">回本天数(3%费+挂机费已扣)</span><span class="dv" style="color:${days < 60 ? 'var(--green)' : days < 120 ? '#e67e22' : 'var(--red)'}">${isFinite(days) ? fmt(days) + ' 天' : '永不回本'}</span></div>
     <div class="detail-row"><span class="dl">回本天数(不含挂机费, 3%费仍扣)</span><span class="dv" style="color:#aaa">${isFinite(calcPaybackDays(eq, p, true, false)) ? fmt(calcPaybackDays(eq, p, true, false)) + ' 天' : '永不回本'}</span></div>
   `;
@@ -875,7 +875,7 @@ function renderDetail(p) {
                <code>每轮(${eq.cycleH}h)净收益 = ${eq.outputPerCycle}×${eq.outputType === 'gold' ? '金子' : '木头'} − ${eq.runFuelPerCycle}×燃料 − ${eq.repairGold}×金子</code><br>
                <code>日净收益 = 每轮净收益(已扣3%手续费) × ${cyclesPerDay}</code>`;
   }
-  formula += `<br><code>官方挂机费/月 = (24h ÷ ${eq.afkOpIntervalH}h) × ${eq.afkGoldPerOp}金 × 金子价 × 30 = ${fmt(calcAfkMonthlyU(eq, p))} U（净收益已扣）</code>`;
+  formula += `<br><code>官方挂机费/月 = (24h ÷ ${eq.afkOpIntervalH}h) × ${eq.afkGoldPerOp}金 × 金子价 × 30 = ${fmt(calcAfkMonthlyU(eq, p))} U（提现到账后支付给公司，已从净收益扣减）</code>`;
   formula += `<br><code>月化率 = 月净收益(扣挂机费) / 合成成本 × 100% &nbsp;|&nbsp; 回本天数 = 合成成本 / 日净收益(扣挂机费)</code>`;
   document.getElementById('formulaBar').innerHTML = formula;
 }
