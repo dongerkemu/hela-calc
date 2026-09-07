@@ -520,40 +520,40 @@ body {
 <div class="header">
   <button class="config-btn" onclick="openConfig()">&#9881;</button>
   <h1>海拉世界 · 装备计算器</h1>
-  <div class="sub">输入材料价格 → 自动计算合成成本 & 回本周期</div>
+  <div class="sub">价格按人民币(元)填写 → 自动计算合成成本、回本周期、燃料均衡价（均衡价/收益主显元，附 U 对照）</div>
 </div>
 
 <div class="price-section">
-  <div class="section-title">材料价格（USDT 本位）</div>
+  <div class="section-title">材料价格（人民币 元）· 汇率用于换算 U 对照</div>
   <div class="price-row">
     <div class="price-item">
       <label><span class="dot dot-gold"></span>金子 GOLD</label>
-      <input type="number" id="goldPrice" value="0.95" step="0.01" min="0.01" placeholder="金子价格">
+      <input type="number" id="goldPrice" value="0.56" step="0.01" min="0.001" placeholder="金子价格(元)">
     </div>
     <div class="price-item">
       <label><span class="dot dot-wood"></span>木头 WOOD</label>
-      <input type="number" id="woodPrice" value="1" step="0.01" min="0.01" placeholder="木头价格">
+      <input type="number" id="woodPrice" value="1.0" step="0.01" min="0.001" placeholder="木头价格(元)">
     </div>
     <div class="price-item">
       <label><span class="dot dot-fuel"></span>燃料</label>
-      <input type="number" id="fuelPrice" value="0.20" step="0.01" min="0.01" placeholder="燃料价格">
+      <input type="number" id="fuelPrice" value="0.20" step="0.01" min="0.001" placeholder="燃料价格(元)">
     </div>
   </div>
   <div class="price-cny">
     人民币汇率
     <input type="number" id="cnyRate" value="6.7" step="0.1" min="0.01">
-    元 / 1 U
+    元 / 1 U &nbsp;<span style="color:#aaa">（仅用于对照显示 U）</span>
   </div>
 </div>
 
 <div id="summary" class="summary">
   <div class="summary-card total">
     <div class="label">合成成本</div>
-    <div class="value">--<span class="unit"> U</span></div>
+    <div class="value">--<span class="unit"> 元</span></div>
   </div>
   <div class="summary-card monthly">
     <div class="label">每月净收益</div>
-    <div class="value">--<span class="unit"> U</span></div>
+    <div class="value">--<span class="unit"> 元</span></div>
   </div>
   <div class="summary-card rate">
     <div class="label">月化率</div>
@@ -565,7 +565,7 @@ body {
   </div>
   <div class="summary-card be">
     <div class="label">燃料均衡价 · 保本上限</div>
-    <div class="value">--<span class="unit"> U/燃料</span></div>
+    <div class="value">--<span class="unit"> 元/燃料</span></div>
   </div>
 </div>
 
@@ -740,7 +740,7 @@ function getPrices() {
 }
 
 // ============ 燃料均衡价（边际口径，合成成本视为固定成本不计） ============
-// 均衡燃料价 = 让"单轮净收益=0"的燃料单价上限：
+// 全部价格为人民币(元)：均衡燃料价 = 让"单轮净收益=0"的燃料单价上限(元/燃料)：
 //   (每轮产出×单价×(1-卖出手续费) − 每轮维修金 − 每轮摊挂机费) ÷ 每轮燃料消耗
 // 若当前燃料市价 < 均衡价 → 买燃料来跑这台设备有边际利润；> 均衡价 → 亏，不如不跑。
 function calcFeeRate() {
@@ -750,15 +750,15 @@ function calcFeeRate() {
 function calcFuelBreakeven(eq, p) {
   const rate = calcFeeRate();
   const outputPrice = eq.outputType === 'gold' ? p.gold : p.wood;
-  const gross = eq.outputPerCycle * outputPrice * (1 - rate);       // 每轮产出值(扣卖出手续费)
+  const gross = eq.outputPerCycle * outputPrice * (1 - rate);       // 每轮产出值(元,扣卖出手续费)
   const fuelQty = eq.isFarm ? eq.seedFuel : eq.runFuelPerCycle;     // 每轮燃料消耗
-  const repair = (eq.isFarm ? 0 : eq.repairGold) * p.gold;          // 每轮维修金(折U)
+  const repair = (eq.isFarm ? 0 : eq.repairGold) * p.gold;          // 每轮维修金(元)
   // 挂机费：官方按"每 afkOpIntervalH 小时收 afkGoldPerOp 金"折算到单轮
   const afkPerCycle = (eq.cycleH / eq.afkOpIntervalH) * eq.afkGoldPerOp * p.gold;
   const nonFuel = repair + afkPerCycle;
-  const beU = fuelQty > 0 ? (gross - nonFuel) / fuelQty : null;     // U/燃料
-  const margin = gross - fuelQty * p.fuel - nonFuel;                // 当前市价下单轮边际净利
-  return { gross, repair, afkPerCycle, nonFuel, fuelQty, beU, margin };
+  const be = fuelQty > 0 ? (gross - nonFuel) / fuelQty : null;      // 元/燃料
+  const margin = gross - fuelQty * p.fuel - nonFuel;                // 当前市价下单轮边际净利(元)
+  return { gross, repair, afkPerCycle, nonFuel, fuelQty, be, margin };
 }
 
 function calcSynthesis(eq, p) {
@@ -838,16 +838,16 @@ function renderSummary(p) {
   const daysNoAfk = calcPaybackDays(eq, p, true, false);
   const afkMonthly = calcAfkMonthlyU(eq, p);
   const be = calcFuelBreakeven(eq, p);
-  const beWorth = (be.beU !== null) && p.fuel < be.beU;
+  const beWorth = (be.be !== null) && p.fuel < be.be;
   document.getElementById('summary').innerHTML = `
     <div class="summary-card total">
       <div class="label">${eq.name} · 合成成本</div>
-      <div class="value">${fmt(cost)}<span class="unit"> U</span></div>
+      <div class="value">${fmt(cost)}<span class="unit"> 元</span></div>
     </div>
     <div class="summary-card monthly">
       <div class="label">月净收益 · 已扣3%费+挂机费</div>
-      <div class="value">${fmt(monthly)}<span class="unit"> U</span></div>
-      <div class="unit" style="font-size:10px;color:#aaa;display:block">挂机费 −${fmt(afkMonthly)} U/月 · 不含挂机费 ${fmt(monthlyNoAfk)} U</div>
+      <div class="value">${fmt(monthly)}<span class="unit"> 元</span></div>
+      <div class="unit" style="font-size:10px;color:#aaa;display:block">挂机费 −${fmt(afkMonthly)} 元/月 · 不含挂机费 ${fmt(monthlyNoAfk)} 元</div>
     </div>
     <div class="summary-card rate">
       <div class="label">月化率 · 已扣3%费+挂机费</div>
@@ -858,12 +858,12 @@ function renderSummary(p) {
       <div class="value">${isFinite(days) ? fmt(days) : '∞'}<span class="unit"> 天</span></div>
       <div class="unit" style="font-size:10px;color:#aaa;display:block">不含挂机费 ${isFinite(daysNoAfk) ? fmt(daysNoAfk) : '∞'} 天 · 3%费仍扣</div>
     </div>
-    ${be.beU !== null ? `
+    ${be.be !== null ? `
     <div class="summary-card be">
       <div class="label">${eq.name} · 燃料均衡价 (保本上限 · 不含合成成本)</div>
-      <div class="value" style="color:${beWorth ? 'var(--green)' : 'var(--red)'}">${fmt(be.beU, 4)}<span class="unit"> U/燃料</span>
-        <span class="be-cny">≈ ${fmt(be.beU * p.cny)} 元</span></div>
-      <div class="unit" style="font-size:10px;color:#aaa;display:block">当前市价 ${fmt(p.fuel)} U/燃料 → ${beWorth ? '低于均衡价 ✓ 买燃料经营赚' : '高于均衡价 ✗ 亏,慎买'} · 单轮边际 ${be.margin >= 0 ? '+' : ''}${fmt(be.margin)} U</div>
+      <div class="value" style="color:${beWorth ? 'var(--green)' : 'var(--red)'}">${fmt(be.be, 4)}<span class="unit"> 元/燃料</span>
+        <span class="be-cny">≈ ${fmt(be.be / p.cny, 4)} U</span></div>
+      <div class="unit" style="font-size:10px;color:#aaa;display:block">当前市价 ${fmt(p.fuel)} 元/燃料 → ${beWorth ? '低于均衡价 ✓ 买燃料经营赚' : '高于均衡价 ✗ 亏,慎买'} · 单轮边际 ${be.margin >= 0 ? '+' : ''}${fmt(be.margin)} 元</div>
     </div>` : ''}
   `;
 }
@@ -890,53 +890,52 @@ function renderDetail(p) {
 
   let detailRows = `
     <div class="detail-row"><span class="dl">装备类型</span><span class="dv">${eq.icon} ${eq.name}</span></div>
-    <div class="detail-row"><span class="dl">合成 GOLD 成本</span><span class="dv">${eq.synth.gold} × ${fmt(p.gold)} = <b>${fmt(goldPart)}</b> U</span></div>
-    <div class="detail-row"><span class="dl">合成 WOOD 成本</span><span class="dv">${eq.synth.wood} × ${fmt(p.wood)} = <b>${fmt(woodPart)}</b> U</span></div>
-    <div class="detail-row"><span class="dl">合成 燃料 成本</span><span class="dv">${eq.synth.fuel} × ${fmt(p.fuel)} = <b>${fmt(fuelPart)}</b> U</span></div>
+    <div class="detail-row"><span class="dl">合成 GOLD 成本</span><span class="dv">${eq.synth.gold} × ${fmt(p.gold)} = <b>${fmt(goldPart)}</b> 元</span></div>
+    <div class="detail-row"><span class="dl">合成 WOOD 成本</span><span class="dv">${eq.synth.wood} × ${fmt(p.wood)} = <b>${fmt(woodPart)}</b> 元</span></div>
+    <div class="detail-row"><span class="dl">合成 燃料 成本</span><span class="dv">${eq.synth.fuel} × ${fmt(p.fuel)} = <b>${fmt(fuelPart)}</b> 元</span></div>
     <div class="detail-row"><span class="dl">生产周期</span><span class="dv">${eq.cycleH >= 24 ? eq.cycleH/24 + ' 天/轮' : eq.cycleH + ' 小时/轮'}</span></div>
     <div class="detail-row"><span class="dl">每日轮次</span><span class="dv">${fmt(cyclesPerDay, 2)} 次</span></div>
   `;
 
   if (eq.isFarm) {
     detailRows += `
-      <div class="detail-row"><span class="dl">每轮种子 (燃料)</span><span class="dv">${eq.seedFuel} × ${fmt(p.fuel)} = <b>${fmt(eq.seedFuel * p.fuel)}</b> U</span></div>
+      <div class="detail-row"><span class="dl">每轮种子 (燃料)</span><span class="dv">${eq.seedFuel} × ${fmt(p.fuel)} = <b>${fmt(eq.seedFuel * p.fuel)}</b> 元</span></div>
     `;
   } else {
     detailRows += `
-      <div class="detail-row"><span class="dl">每轮燃料消耗</span><span class="dv">${eq.runFuelPerCycle} × ${fmt(p.fuel)} = <b>${fmt(eq.runFuelPerCycle * p.fuel)}</b> U</span></div>
-      <div class="detail-row"><span class="dl">每轮维修金 (GOLD)</span><span class="dv">${eq.repairGold} × ${fmt(p.gold)} = <b>${fmt(eq.repairGold * p.gold)}</b> U</span></div>
+      <div class="detail-row"><span class="dl">每轮燃料消耗</span><span class="dv">${eq.runFuelPerCycle} × ${fmt(p.fuel)} = <b>${fmt(eq.runFuelPerCycle * p.fuel)}</b> 元</span></div>
+      <div class="detail-row"><span class="dl">每轮维修金 (GOLD)</span><span class="dv">${eq.repairGold} × ${fmt(p.gold)} = <b>${fmt(eq.repairGold * p.gold)}</b> 元</span></div>
     `;
   }
 
   detailRows += `
-    <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${eq.outputType === 'gold' ? 'GOLD' : 'WOOD'} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> U</span></div>
-    <div class="detail-row"><span class="dl">卖出扣3%手续费</span><span class="dv" style="color:var(--red)">−${fmt(grossPerCycle - grossAfterFee)} U</span></div>
-    <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益 · 可提现额(已扣3%费)</span><span class="dv highlight">${fmt(netPerCycle)} U</span></div>
-    <div class="detail-row" style="background:#fff8e1"><span class="dl">提现后付挂机费(转公司)</span><span class="dv" style="color:#b8860b">每天 ${Number.isInteger(afkOpsPerDay) ? afkOpsPerDay : fmt(afkOpsPerDay)} 次 × ${eq.afkGoldPerOp} 金 × ${fmt(p.gold)} = <b>−${fmt(afkDaily)} U/天</b> · 月 −${fmt(afkMonthly)} U</span></div>
+    <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${eq.outputType === 'gold' ? 'GOLD' : 'WOOD'} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> 元</span></div>
+    <div class="detail-row"><span class="dl">卖出扣3%手续费</span><span class="dv" style="color:var(--red)">−${fmt(grossPerCycle - grossAfterFee)} 元</span></div>
+    <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益 · 可提现额(已扣3%费)</span><span class="dv highlight">${fmt(netPerCycle)} 元</span></div>
+    <div class="detail-row" style="background:#fff8e1"><span class="dl">提现后付挂机费(转公司)</span><span class="dv" style="color:#b8860b">每天 ${Number.isInteger(afkOpsPerDay) ? afkOpsPerDay : fmt(afkOpsPerDay)} 次 × ${eq.afkGoldPerOp} 金 × ${fmt(p.gold)} = <b>−${fmt(afkDaily)} 元/天</b> · 月 −${fmt(afkMonthly)} 元</span></div>
   `;
 
-  // ---- 燃料均衡价（边际口径）----
+  // ---- 燃料均衡价（边际口径, 人民币元）----
   const be = calcFuelBreakeven(eq, p);
-  if (be.beU !== null) {
-    const beCny = be.beU * p.cny;
+  if (be.be !== null) {
     const cur = p.fuel;
-    const worth = cur < be.beU;                 // 当前燃料市价低于均衡价 → 值得买燃料
+    const worth = cur < be.be;                 // 当前燃料市价(元)低于均衡价(元) → 值得买燃料
     const verdict = worth
       ? '当前燃料价低于均衡价 → 买燃料经营有边际利润 ✓'
       : '当前燃料价高于均衡价 → 买燃料经营亏损，慎买';
     detailRows += `
       <div class="detail-row be-head"><span class="dl">⚖ 燃料均衡价 (边际口径, 不含合成成本)</span><span class="dv"></span></div>
       <div class="detail-row"><span class="dl">每轮燃料消耗</span><span class="dv">${be.fuelQty} 燃料</span></div>
-      <div class="detail-row"><span class="dl">产出值 − 维修 − 挂机费/轮</span><span class="dv">${fmt(be.gross)} − ${fmt(be.repair)} − ${fmt(be.afkPerCycle)} = <b>${fmt(be.gross - be.nonFuel)}</b> U</span></div>
-      <div class="detail-row be-result" style="background:#e3f2fd"><span class="dl">均衡燃料价 (保本上限)</span><span class="dv highlight">${fmt(be.beU, 4)} U/燃料 <span style="color:#888">≈ ${fmt(beCny)} 元</span></span></div>
-      <div class="detail-row"><span class="dl">当前燃料市价</span><span class="dv">${fmt(cur)} U/燃料 <span style="color:${worth ? 'var(--green)' : 'var(--red)'}">${verdict}</span></span></div>
-      <div class="detail-row"><span class="dl">当前市价下单轮边际净利</span><span class="dv" style="color:${be.margin >= 0 ? 'var(--green)' : 'var(--red)'}">${be.margin >= 0 ? '+' : ''}${fmt(be.margin)} U</span></div>
+      <div class="detail-row"><span class="dl">产出值 − 维修 − 挂机费/轮</span><span class="dv">${fmt(be.gross)} − ${fmt(be.repair)} − ${fmt(be.afkPerCycle)} = <b>${fmt(be.gross - be.nonFuel)}</b> 元</span></div>
+      <div class="detail-row be-result" style="background:#e3f2fd"><span class="dl">均衡燃料价 (保本上限)</span><span class="dv highlight">${fmt(be.be, 4)} 元/燃料 <span style="color:#888">≈ ${fmt(be.be / p.cny, 4)} U</span></span></div>
+      <div class="detail-row"><span class="dl">当前燃料市价</span><span class="dv">${fmt(cur)} 元/燃料 <span style="color:${worth ? 'var(--green)' : 'var(--red)'}">${verdict}</span></span></div>
+      <div class="detail-row"><span class="dl">当前市价下单轮边际净利</span><span class="dv" style="color:${be.margin >= 0 ? 'var(--green)' : 'var(--red)'}">${be.margin >= 0 ? '+' : ''}${fmt(be.margin)} 元</span></div>
     `;
   }
 
   detailRows += `
-    <div class="detail-row"><span class="dl">日净收益(到手额−挂机费)</span><span class="dv">${fmt(daily)} U</span></div>
-    <div class="detail-row"><span class="dl">月净收益(30天, 到手额−挂机费)</span><span class="dv">${fmt(monthly)} U</span></div>
+    <div class="detail-row"><span class="dl">日净收益(到手额−挂机费)</span><span class="dv">${fmt(daily)} 元</span></div>
+    <div class="detail-row"><span class="dl">月净收益(30天, 到手额−挂机费)</span><span class="dv">${fmt(monthly)} 元</span></div>
     <div class="detail-row"><span class="dl">回本天数(3%费+挂机费已扣)</span><span class="dv" style="color:${days < 60 ? 'var(--green)' : days < 120 ? '#e67e22' : 'var(--red)'}">${isFinite(days) ? fmt(days) + ' 天' : '永不回本'}</span></div>
     <div class="detail-row"><span class="dl">回本天数(不含挂机费, 3%费仍扣)</span><span class="dv" style="color:#aaa">${isFinite(calcPaybackDays(eq, p, true, false)) ? fmt(calcPaybackDays(eq, p, true, false)) + ' 天' : '永不回本'}</span></div>
   `;
@@ -946,15 +945,15 @@ function renderDetail(p) {
     <div class="cost-breakdown">
       <div class="cost-chip gold-chip">
         <div class="chip-amt">${fmt(goldPart)}</div>
-        <div class="chip-label">GOLD ${eq.synth.gold}×${fmt(p.gold)}</div>
+        <div class="chip-label">GOLD ${eq.synth.gold}×${fmt(p.gold)} 元</div>
       </div>
       <div class="cost-chip wood-chip">
         <div class="chip-amt">${fmt(woodPart)}</div>
-        <div class="chip-label">WOOD ${eq.synth.wood}×${fmt(p.wood)}</div>
+        <div class="chip-label">WOOD ${eq.synth.wood}×${fmt(p.wood)} 元</div>
       </div>
       <div class="cost-chip fuel-chip">
         <div class="chip-amt">${fmt(fuelPart)}</div>
-        <div class="chip-label">燃料 ${eq.synth.fuel}×${fmt(p.fuel)}</div>
+        <div class="chip-label">燃料 ${eq.synth.fuel}×${fmt(p.fuel)} 元</div>
       </div>
     </div>
     <div class="detail-rows">${detailRows}</div>
@@ -971,11 +970,11 @@ function renderDetail(p) {
                <code>每轮(${eq.cycleH}h)净收益 = ${eq.outputPerCycle}×${eq.outputType === 'gold' ? '金子' : '木头'} − ${eq.runFuelPerCycle}×燃料 − ${eq.repairGold}×金子</code><br>
                <code>日净收益 = 每轮净收益(已扣3%手续费) × ${cyclesPerDay}</code>`;
   }
-  formula += `<br><code>官方挂机费/月 = (24h ÷ ${eq.afkOpIntervalH}h) × ${eq.afkGoldPerOp}金 × 金子价 × 30 = ${fmt(calcAfkMonthlyU(eq, p))} U（提现到账后支付给公司，已从净收益扣减）</code>`;
+  formula += `<br><code>官方挂机费/月 = (24h ÷ ${eq.afkOpIntervalH}h) × ${eq.afkGoldPerOp}金 × 金子价 × 30 = ${fmt(calcAfkMonthlyU(eq, p))} 元（提现到账后支付给公司，已从净收益扣减）</code>`;
   formula += `<br><code>月化率 = 月净收益(扣挂机费) / 合成成本 × 100% &nbsp;|&nbsp; 回本天数 = 合成成本 / 日净收益(扣挂机费)</code>`;
-  if (calcFuelBreakeven(eq, p).beU !== null) {
+  if (calcFuelBreakeven(eq, p).be !== null) {
     const be = calcFuelBreakeven(eq, p);
-    formula += `<br><code style="color:#1565c0">⚖ 燃料均衡价 = (产出值 ${fmt(be.gross)} − 维修 ${fmt(be.repair)} − 挂机费/轮 ${fmt(be.afkPerCycle)}) ÷ ${be.fuelQty}燃料 = <b>${fmt(be.beU, 4)} U/燃料</b> (≈${fmt(be.beU * p.cny)} 元)。合成成本=固定成本不计；燃料市价低于均衡价→买燃料经营有边际利润。</code>`;
+    formula += `<br><code style="color:#1565c0">⚖ 燃料均衡价 = (产出值 ${fmt(be.gross)} − 维修 ${fmt(be.repair)} − 挂机费/轮 ${fmt(be.afkPerCycle)}) ÷ ${be.fuelQty}燃料 = <b>${fmt(be.be, 4)} 元/燃料</b> (≈${fmt(be.be / p.cny, 4)} U)。合成成本=固定成本不计；燃料市价低于均衡价→买燃料经营有边际利润。</code>`;
   }
   document.getElementById('formulaBar').innerHTML = formula;
 }
@@ -1001,11 +1000,11 @@ function renderTable(p) {
   const worstDays = Math.max(...rows.map(r => isFinite(r.days) ? r.days : 0));
 
   let html = `<thead><tr>
-    <th>装备</th><th>周期</th><th>产出/轮</th><th>合成成本</th><th>挂机费/月</th>
-    <th title="已扣3%卖出手续费与挂机费">月净收益</th>
+    <th>装备</th><th>周期</th><th>产出/轮</th><th>合成成本(元)</th><th>挂机费/月(元)</th>
+    <th title="已扣3%卖出手续费与挂机费">月净收益(元)</th>
     <th title="已扣3%卖出手续费与挂机费">月化率</th>
     <th title="已扣3%卖出手续费与挂机费">回本</th>
-    <th title="燃料均衡价(边际口径, U/燃料)：当前燃料市价 ${fmt(p.fuel)} U 低于它就值得买燃料经营">燃料均衡价</th>
+    <th title="燃料均衡价(边际口径, 元/燃料)：当前燃料市价 ${fmt(p.fuel)} 元 低于它就值得买燃料经营">燃料均衡价(元/燃料)</th>
   </tr></thead><tbody>`;
 
   rows.forEach(r => {
@@ -1013,9 +1012,9 @@ function renderTable(p) {
     const rateClass = r.rate === bestRate ? ' best' : r.rate === worstRate ? ' worst' : '';
     const daysClass = r.days === bestDays && isFinite(r.days) ? ' best' : r.days === worstDays ? ' worst' : '';
     let beCell = '<td style="color:#999">--</td>';
-    if (r.be.beU !== null) {
-      const beWorth = p.fuel < r.be.beU;
-      beCell = `<td style="color:${beWorth ? 'var(--green)' : 'var(--red)'}">${fmt(r.be.beU, 3)}</td>`;
+    if (r.be.be !== null) {
+      const beWorth = p.fuel < r.be.be;
+      beCell = `<td style="color:${beWorth ? 'var(--green)' : 'var(--red)'}">${fmt(r.be.be, 3)}</td>`;
     }
     html += `<tr class="${sel}" onclick="selectEq('${r.eq.id}')">
       <td class="eq-name-col">${r.eq.icon} ${r.eq.name}</td>
@@ -1084,7 +1083,7 @@ function updateCostHint() {
   document.getElementById('costHint').textContent =
     '装备合成成本 = ' + eq.synth.gold + '×' + fmt(g) + ' + ' +
     eq.synth.wood + '×' + fmt(w) + ' + ' + eq.synth.fuel + '×' + fmt(f) +
-    ' = ' + fmt(cost) + ' U';
+    ' = ' + fmt(cost) + ' 元';
   document.getElementById('recGold').oninput = updateCostHint;
   document.getElementById('recWood').oninput = updateCostHint;
   document.getElementById('recFuel').oninput = updateCostHint;
@@ -1151,7 +1150,7 @@ function renderPurchaseList() {
         matInfo +
       '</div>' +
       '<div class="pi-right">' +
-        '<div class="pi-cost">成本 ' + fmt(r.cost) + ' U</div>' +
+        '<div class="pi-cost">成本 ' + fmt(r.cost) + ' 元</div>' +
         '<div class="pi-payback ' + cls + '">3%费+挂机费后 ' + (isFinite(days) ? fmt(days) + ' 天' : '∞') + '</div>' +
         '<div class="pi-payback" style="color:#bbb;font-size:10px">不含挂机费 ' + (isFinite(daysNoAfk) ? fmt(daysNoAfk) + ' 天' : '∞') + ' (3%费仍扣)</div>' +
       '</div>' +
