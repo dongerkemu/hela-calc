@@ -606,7 +606,7 @@ const EQUIPMENT = [
     runFuelPerCycle: 0,
     repairGold: 0,
     isFarm: true,
-    seedFuel: 500,
+    seedFuel: 1200,  // 每颗种子燃料（2026-09-06 服务端 exchangeShop 实测 500→1200）
     afkGoldPerOp: 0.4,  // 官方托管费：土地每 3h 操作一次收 0.4 金（链上转账）
     afkOpIntervalH: 3,
   },
@@ -619,7 +619,7 @@ const EQUIPMENT = [
     cycleH: 6,
     outputPerCycle: 7,
     outputType: 'wood',
-    runFuelPerCycle: 20,
+    runFuelPerCycle: 26,  // 每轮油耗（服务端 mechine.oilCost，2026-09-07 校准 20→26）
     repairGold: 1.2,
     afkGoldPerOp: 0.6,  // 官方托管费：伐木机每 6h 操作一次收 0.6 金
     afkOpIntervalH: 6,
@@ -633,7 +633,7 @@ const EQUIPMENT = [
     cycleH: 6,
     outputPerCycle: 38,
     outputType: 'wood',
-    runFuelPerCycle: 24,
+    runFuelPerCycle: 29,  // 服务端 mechine.oilCost 校准 24→29
     repairGold: 10.4,
     afkGoldPerOp: 0.6,
     afkOpIntervalH: 6,
@@ -647,7 +647,7 @@ const EQUIPMENT = [
     cycleH: 6,
     outputPerCycle: 108,
     outputType: 'wood',
-    runFuelPerCycle: 54,
+    runFuelPerCycle: 63,  // 服务端 mechine.oilCost 校准 54→63
     repairGold: 30,
     afkGoldPerOp: 0.6,
     afkOpIntervalH: 6,
@@ -661,7 +661,7 @@ const EQUIPMENT = [
     cycleH: 6,
     outputPerCycle: 316,
     outputType: 'wood',
-    runFuelPerCycle: 135,
+    runFuelPerCycle: 150,  // 服务端 mechine.oilCost 校准 135→150
     repairGold: 54,
     afkGoldPerOp: 0.6,
     afkOpIntervalH: 6,
@@ -676,7 +676,7 @@ const EQUIPMENT = [
     outputPerCycle: 141,
     outputType: 'gold',
     runFuelPerCycle: 80,
-    repairGold: 16.2,
+    repairGold: 54,  // mechine(10002) decay270×0.2 校准 16.2→54（2026-09-07）
     afkGoldPerOp: 0.6,  // 采矿车费率按伐木机暂估，官方如另计价在参数配置里改
     afkOpIntervalH: 6,
   },
