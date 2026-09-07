@@ -245,6 +245,18 @@ body {
 .summary-card.monthly .value { color: var(--green); }
 .summary-card.rate .value { color: var(--accent); }
 .summary-card.days .value { color: var(--red); }
+.summary-card.be {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #eef6ff 0%, #e3f2fd 100%);
+  border: 1.5px solid #bbdefb;
+}
+.summary-card.be .value { font-size: 26px; }
+.summary-card.be .be-cny {
+  font-size: 14px;
+  color: #555;
+  font-weight: 600;
+  margin-left: 8px;
+}
 
 /* Equipment Selector */
 .eq-selector {
@@ -551,6 +563,10 @@ body {
     <div class="label">回本天数</div>
     <div class="value">--<span class="unit"> 天</span></div>
   </div>
+  <div class="summary-card be">
+    <div class="label">燃料均衡价 · 保本上限</div>
+    <div class="value">--<span class="unit"> U/燃料</span></div>
+  </div>
 </div>
 
 <div class="eq-selector" id="eqSelector"></div>
@@ -821,6 +837,8 @@ function renderSummary(p) {
   const days = calcPaybackDays(eq, p);
   const daysNoAfk = calcPaybackDays(eq, p, true, false);
   const afkMonthly = calcAfkMonthlyU(eq, p);
+  const be = calcFuelBreakeven(eq, p);
+  const beWorth = (be.beU !== null) && p.fuel < be.beU;
   document.getElementById('summary').innerHTML = `
     <div class="summary-card total">
       <div class="label">${eq.name} · 合成成本</div>
@@ -840,6 +858,13 @@ function renderSummary(p) {
       <div class="value">${isFinite(days) ? fmt(days) : '∞'}<span class="unit"> 天</span></div>
       <div class="unit" style="font-size:10px;color:#aaa;display:block">不含挂机费 ${isFinite(daysNoAfk) ? fmt(daysNoAfk) : '∞'} 天 · 3%费仍扣</div>
     </div>
+    ${be.beU !== null ? `
+    <div class="summary-card be">
+      <div class="label">${eq.name} · 燃料均衡价 (保本上限 · 不含合成成本)</div>
+      <div class="value" style="color:${beWorth ? 'var(--green)' : 'var(--red)'}">${fmt(be.beU, 4)}<span class="unit"> U/燃料</span>
+        <span class="be-cny">≈ ${fmt(be.beU * p.cny)} 元</span></div>
+      <div class="unit" style="font-size:10px;color:#aaa;display:block">当前市价 ${fmt(p.fuel)} U/燃料 → ${beWorth ? '低于均衡价 ✓ 买燃料经营赚' : '高于均衡价 ✗ 亏,慎买'} · 单轮边际 ${be.margin >= 0 ? '+' : ''}${fmt(be.margin)} U</div>
+    </div>` : ''}
   `;
 }
 
