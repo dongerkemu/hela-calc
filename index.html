@@ -725,7 +725,7 @@ const EQUIPMENT = [
 ];
 
 
-const FEE_RATE = 0.03;  // 3% 卖出手续费
+const FEE_RATE = 0.07;  // 7% 卖出手续费（2026-09-08 由 3% 上调）
 
 let currentEq = EQUIPMENT[0];
 
@@ -845,18 +845,18 @@ function renderSummary(p) {
       <div class="value">${fmt(cost)}<span class="unit"> 元</span></div>
     </div>
     <div class="summary-card monthly">
-      <div class="label">月净收益 · 已扣3%费+挂机费</div>
+      <div class="label">月净收益 · 已扣7%费+挂机费</div>
       <div class="value">${fmt(monthly)}<span class="unit"> 元</span></div>
       <div class="unit" style="font-size:10px;color:#aaa;display:block">挂机费 −${fmt(afkMonthly)} 元/月 · 不含挂机费 ${fmt(monthlyNoAfk)} 元</div>
     </div>
     <div class="summary-card rate">
-      <div class="label">月化率 · 已扣3%费+挂机费</div>
+      <div class="label">月化率 · 已扣7%费+挂机费</div>
       <div class="value" style="color:${rate >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(rate)}<span class="unit">%</span></div>
     </div>
     <div class="summary-card days">
-      <div class="label">回本天数 · 已扣3%费+挂机费</div>
+      <div class="label">回本天数 · 已扣7%费+挂机费</div>
       <div class="value">${isFinite(days) ? fmt(days) : '∞'}<span class="unit"> 天</span></div>
-      <div class="unit" style="font-size:10px;color:#aaa;display:block">不含挂机费 ${isFinite(daysNoAfk) ? fmt(daysNoAfk) : '∞'} 天 · 3%费仍扣</div>
+      <div class="unit" style="font-size:10px;color:#aaa;display:block">不含挂机费 ${isFinite(daysNoAfk) ? fmt(daysNoAfk) : '∞'} 天 · 7%费仍扣</div>
     </div>
     ${be.be !== null ? `
     <div class="summary-card be">
@@ -910,8 +910,8 @@ function renderDetail(p) {
 
   detailRows += `
     <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${eq.outputType === 'gold' ? 'GOLD' : 'WOOD'} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> 元</span></div>
-    <div class="detail-row"><span class="dl">卖出扣3%手续费</span><span class="dv" style="color:var(--red)">−${fmt(grossPerCycle - grossAfterFee)} 元</span></div>
-    <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益 · 可提现额(已扣3%费)</span><span class="dv highlight">${fmt(netPerCycle)} 元</span></div>
+    <div class="detail-row"><span class="dl">卖出扣7%手续费</span><span class="dv" style="color:var(--red)">−${fmt(grossPerCycle - grossAfterFee)} 元</span></div>
+    <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益 · 可提现额(已扣7%费)</span><span class="dv highlight">${fmt(netPerCycle)} 元</span></div>
     <div class="detail-row" style="background:#fff8e1"><span class="dl">提现后付挂机费(转公司)</span><span class="dv" style="color:#b8860b">每天 ${Number.isInteger(afkOpsPerDay) ? afkOpsPerDay : fmt(afkOpsPerDay)} 次 × ${eq.afkGoldPerOp} 金 × ${fmt(p.gold)} = <b>−${fmt(afkDaily)} 元/天</b> · 月 −${fmt(afkMonthly)} 元</span></div>
   `;
 
@@ -936,8 +936,8 @@ function renderDetail(p) {
   detailRows += `
     <div class="detail-row"><span class="dl">日净收益(到手额−挂机费)</span><span class="dv">${fmt(daily)} 元</span></div>
     <div class="detail-row"><span class="dl">月净收益(30天, 到手额−挂机费)</span><span class="dv">${fmt(monthly)} 元</span></div>
-    <div class="detail-row"><span class="dl">回本天数(3%费+挂机费已扣)</span><span class="dv" style="color:${days < 60 ? 'var(--green)' : days < 120 ? '#e67e22' : 'var(--red)'}">${isFinite(days) ? fmt(days) + ' 天' : '永不回本'}</span></div>
-    <div class="detail-row"><span class="dl">回本天数(不含挂机费, 3%费仍扣)</span><span class="dv" style="color:#aaa">${isFinite(calcPaybackDays(eq, p, true, false)) ? fmt(calcPaybackDays(eq, p, true, false)) + ' 天' : '永不回本'}</span></div>
+    <div class="detail-row"><span class="dl">回本天数(7%费+挂机费已扣)</span><span class="dv" style="color:${days < 60 ? 'var(--green)' : days < 120 ? '#e67e22' : 'var(--red)'}">${isFinite(days) ? fmt(days) + ' 天' : '永不回本'}</span></div>
+    <div class="detail-row"><span class="dl">回本天数(不含挂机费, 7%费仍扣)</span><span class="dv" style="color:#aaa">${isFinite(calcPaybackDays(eq, p, true, false)) ? fmt(calcPaybackDays(eq, p, true, false)) + ' 天' : '永不回本'}</span></div>
   `;
 
   document.getElementById('detailCard').innerHTML = `
@@ -964,11 +964,11 @@ function renderDetail(p) {
   if (eq.isFarm) {
     formula = `<code>合成成本 = ${eq.synth.gold}×金子 + ${eq.synth.wood}×木头 + ${eq.synth.fuel}×燃料</code><br>
                <code>每轮(${eq.cycleH/24}天)净收益 = ${eq.outputPerCycle}×金子 − ${eq.seedFuel}×燃料</code><br>
-               <code>日净收益 = 每轮净收益(已扣3%手续费) / ${eq.cycleH/24}</code>`;
+               <code>日净收益 = 每轮净收益(已扣7%手续费) / ${eq.cycleH/24}</code>`;
   } else {
     formula = `<code>合成成本 = ${eq.synth.gold}×金子 + ${eq.synth.wood}×木头 + ${eq.synth.fuel}×燃料</code><br>
                <code>每轮(${eq.cycleH}h)净收益 = ${eq.outputPerCycle}×${eq.outputType === 'gold' ? '金子' : '木头'} − ${eq.runFuelPerCycle}×燃料 − ${eq.repairGold}×金子</code><br>
-               <code>日净收益 = 每轮净收益(已扣3%手续费) × ${cyclesPerDay}</code>`;
+               <code>日净收益 = 每轮净收益(已扣7%手续费) × ${cyclesPerDay}</code>`;
   }
   formula += `<br><code>官方挂机费/月 = (24h ÷ ${eq.afkOpIntervalH}h) × ${eq.afkGoldPerOp}金 × 金子价 × 30 = ${fmt(calcAfkMonthlyU(eq, p))} 元（提现到账后支付给公司，已从净收益扣减）</code>`;
   formula += `<br><code>月化率 = 月净收益(扣挂机费) / 合成成本 × 100% &nbsp;|&nbsp; 回本天数 = 合成成本 / 日净收益(扣挂机费)</code>`;
@@ -1001,9 +1001,9 @@ function renderTable(p) {
 
   let html = `<thead><tr>
     <th>装备</th><th>周期</th><th>产出/轮</th><th>合成成本(元)</th><th>挂机费/月(元)</th>
-    <th title="已扣3%卖出手续费与挂机费">月净收益(元)</th>
-    <th title="已扣3%卖出手续费与挂机费">月化率</th>
-    <th title="已扣3%卖出手续费与挂机费">回本</th>
+    <th title="已扣7%卖出手续费与挂机费">月净收益(元)</th>
+    <th title="已扣7%卖出手续费与挂机费">月化率</th>
+    <th title="已扣7%卖出手续费与挂机费">回本</th>
     <th title="燃料均衡价(边际口径, 元/燃料)：当前燃料市价 ${fmt(p.fuel)} 元 低于它就值得买燃料经营">燃料均衡价(元/燃料)</th>
   </tr></thead><tbody>`;
 
@@ -1151,8 +1151,8 @@ function renderPurchaseList() {
       '</div>' +
       '<div class="pi-right">' +
         '<div class="pi-cost">成本 ' + fmt(r.cost) + ' 元</div>' +
-        '<div class="pi-payback ' + cls + '">3%费+挂机费后 ' + (isFinite(days) ? fmt(days) + ' 天' : '∞') + '</div>' +
-        '<div class="pi-payback" style="color:#bbb;font-size:10px">不含挂机费 ' + (isFinite(daysNoAfk) ? fmt(daysNoAfk) + ' 天' : '∞') + ' (3%费仍扣)</div>' +
+        '<div class="pi-payback ' + cls + '">7%费+挂机费后 ' + (isFinite(days) ? fmt(days) + ' 天' : '∞') + '</div>' +
+        '<div class="pi-payback" style="color:#bbb;font-size:10px">不含挂机费 ' + (isFinite(daysNoAfk) ? fmt(daysNoAfk) + ' 天' : '∞') + ' (7%费仍扣)</div>' +
       '</div>' +
       '<button class="btn-del" onclick="deleteRecord(' + r.id + ')">×</button>' +
     '</div>';
@@ -1178,7 +1178,7 @@ document.getElementById('fuelPrice').addEventListener('input', renderAll);
 
 // ==================== 参数配置 ====================
 const DEFAULT_EQUIPMENT = JSON.parse(JSON.stringify(EQUIPMENT));
-const DEFAULT_FEE_RATE = 0.03;
+const DEFAULT_FEE_RATE = 0.07;
 
 function loadConfig() {
   try {
@@ -1211,7 +1211,7 @@ function saveConfigData() {
       afkGoldPerOp: eq.afkGoldPerOp,
       afkOpIntervalH: eq.afkOpIntervalH,
     })),
-    feeRate: parseFloat(document.getElementById('cfgFeeRate').value) || 0.03,
+    feeRate: parseFloat(document.getElementById('cfgFeeRate').value) || 0.07,
   };
   localStorage.setItem('hela_config', JSON.stringify(data));
 }
@@ -1280,7 +1280,7 @@ function saveConfig() {
     eq.afkGoldPerOp = parseFloat(document.getElementById('cfg_' + idx + '_ag').value) || 0;
     eq.afkOpIntervalH = parseFloat(document.getElementById('cfg_' + idx + '_ah').value) || 1;
   });
-  window._feeRate = parseFloat(document.getElementById('cfgFeeRate').value) || 0.03;
+  window._feeRate = parseFloat(document.getElementById('cfgFeeRate').value) || 0.07;
   saveConfigData();
   closeConfig();
   renderAll();
