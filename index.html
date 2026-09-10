@@ -389,8 +389,7 @@ body {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
-}
-.comp-table th {
+}.comp-table th {
   background: #f8f9fa;
   padding: 10px 6px;
   font-weight: 600;
@@ -414,6 +413,33 @@ body {
 .comp-table .best { color: var(--green); font-weight: 700; }
 .comp-table .worst { color: var(--red); }
 .comp-table tr.row-selected { background: #e3f2fd; }
+
+/* 保本售价速查（燃料成本 → 产出最低售价） */
+.be-wrap .be-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px 12px;
+  font-size: 12px;
+  color: #666;
+}
+.be-wrap .be-input-row input {
+  width: 200px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.be-wrap .be-hint { font-size: 11px; color: #aaa; }
+.be-table-title { padding: 0 16px 8px; font-size: 12px; color: #888; }
+.comp-table th.be-out-header { line-height: 1.5; }
+.comp-table th .be-sub { display: block; font-weight: 400; font-size: 11px; color: #aaa; }
+.comp-table td.be-cell { font-weight: 700; }
+.comp-table td.be-cell .be-unit { display: block; font-weight: 400; font-size: 10px; color: #bbb; }
+.comp-table td.be-fuel { font-weight: 700; color: #555; background: #fafafa; }
+.comp-table td.be-fuel .be-cur { display: block; font-weight: 400; font-size: 10px; color: var(--accent); }
 
 
 /* Purchase Records */
@@ -566,6 +592,18 @@ body {
   <div class="summary-card be">
     <div class="label">燃料均衡价 · 保本上限</div>
     <div class="value">--<span class="unit"> 元/燃料</span></div>
+  </div>
+</div>
+
+<div class="table-wrap be-wrap">
+  <div class="table-title">保本售价速查 · 按燃料成本倒推（我买这个价的燃料，产出至少卖多少才不亏）</div>
+  <div class="be-input-row">
+    <label>燃料成本（元/燃料，可填多个用逗号分隔）</label>
+    <input type="text" id="fuelCostList" value="0.2,0.3,0.4,0.5" oninput="onFuelListChange()">
+    <span class="be-hint">每格 = 该燃料价下，该设备<strong>单轮不亏本的最低售价</strong>；<span style="color:var(--green)">绿色=现价已高于它（能赚）</span>，<span style="color:var(--red)">红色=现价不够（亏）</span></span>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="comp-table" id="beTable"></table>
   </div>
 </div>
 
@@ -761,6 +799,76 @@ function calcFuelBreakeven(eq, p) {
   return { gross, repair, afkPerCycle, nonFuel, fuelQty, be, margin };
 }
 
+// ============ 保本售价（反向口径）：给定燃料成本，求产出最低该卖多少 ============
+// 单轮边际净利=0 时：
+//   产出 × P_产出 × (1-手续费) = 每轮燃料量 × 燃料单价 + 每轮维修金 + 每轮挂机费
+// 维修金/挂机费都是"金"计价，需按金价折算成元。
+//   产出为木头(石斧/手斧/链锯/伐木车)：金开支按当前金价折元 → 直接解出 元/木
+//   产出为金子(土地/采矿车)：金开支本身也是金子，先折成"金单位"再解 → 元/金
+function calcBreakevenPrice(eq, p, fuelCost) {
+  const rate = calcFeeRate();
+  const fuelQty = eq.isFarm ? eq.seedFuel : eq.runFuelPerCycle;
+  const fuelYuan = fuelQty * fuelCost;                                  // 每轮燃料成本(元)
+  const goldPerCycle = (eq.isFarm ? 0 : eq.repairGold)
+                     + (eq.cycleH / eq.afkOpIntervalH) * eq.afkGoldPerOp; // 每轮金的固定开支(金)
+  const output = eq.outputPerCycle;
+  if (output <= 0) return null;
+  if (eq.outputType === 'gold') {
+    // 产出与开支同为金子：先按金计净产出，再分摊燃料成本
+    //   净金 = 产出×(1-费率) − 每轮金开支 ;  P_金 = 燃料成本(元) ÷ 净金
+    const netGold = output * (1 - rate) - goldPerCycle;
+    if (netGold <= 0) return null;                                      // 单轮净金为负 → 卖多贵都亏
+    return { price: fuelYuan / netGold, unit: '元/金' };
+  }
+  // 产出为木头：金开支按当前金价折成元后并入成本
+  const costYuan = fuelYuan + goldPerCycle * p.gold;
+  const netWood = output * (1 - rate);
+  if (netWood <= 0) return null;
+  return { price: costYuan / netWood, unit: '元/木' };
+}
+
+function parseFuelCostList(p) {
+  const el = document.getElementById('fuelCostList');
+  const raw = (el && el.value) ? el.value : '';
+  const arr = raw.split(/[,，\s]+/).map(s => parseFloat(s)).filter(v => isFinite(v) && v > 0);
+  const uniq = [];
+  arr.forEach(v => { if (!uniq.some(u => Math.abs(u - v) < 1e-9)) uniq.push(v); });
+  return uniq.length ? uniq : [p.fuel];
+}
+
+function onFuelListChange() {
+  renderBeTable(getPrices());
+}
+
+function renderBeTable(p) {
+  const fuels = parseFuelCostList(p);
+  const eqs = EQUIPMENT;
+  let html = '<thead><tr><th style="text-align:left">燃料成本<br><span class="be-sub">元/燃料</span></th>';
+  eqs.forEach(eq => {
+    const outLabel = eq.outputType === 'gold' ? '金子' : '木头';
+    const curPrice = eq.outputType === 'gold' ? p.gold : p.wood;
+    html += `<th class="be-out-header">${eq.icon} ${eq.name}<span class="be-sub">产出${outLabel} ${eq.outputPerCycle}/轮 · 现价 ${fmt(curPrice, 3)} 元/${outLabel === '金子' ? '金' : '木'}</span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  fuels.forEach(f => {
+    const isCurrent = Math.abs(f - p.fuel) < 1e-9;
+    html += `<tr class="${isCurrent ? 'row-selected' : ''}"><td class="be-fuel" style="text-align:left">${fmt(f, 2)}${isCurrent ? '<span class="be-cur">← 当前燃料价</span>' : ''}</td>`;
+    eqs.forEach(eq => {
+      const r = calcBreakevenPrice(eq, p, f);
+      if (!r) { html += '<td class="be-cell" style="color:#ccc">卖多贵都亏</td>'; return; }
+      const curPrice = eq.outputType === 'gold' ? p.gold : p.wood;
+      const ok = curPrice >= r.price;                                   // 现价 ≥ 保本价 → 能赚
+      const diff = curPrice - r.price;
+      html += `<td class="be-cell" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${fmt(r.price, 3)}`
+           +  `<span class="be-unit">${r.unit}${ok ? ` · 现价高 ${fmt(diff, 3)}` : ` · 差 ${fmt(-diff, 3)}`}</span></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('beTable').innerHTML = html;
+}
+
 function calcSynthesis(eq, p) {
   return eq.synth.gold * p.gold + eq.synth.wood * p.wood + eq.synth.fuel * p.fuel;
 }
@@ -826,6 +934,7 @@ function renderAll() {
   renderSummary(p);
   renderDetail(p);
   renderTable(p);
+  renderBeTable(p);
 }
 
 function renderSummary(p) {
