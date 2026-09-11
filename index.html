@@ -413,32 +413,43 @@ body {
 .comp-table .worst { color: var(--red); }
 .comp-table tr.row-selected { background: #e3f2fd; }
 
-/* 保本售价速查（燃料成本 → 产出最低售价） */
+/* 保本售价速查（燃料成本 → 产出最低售价）— 紧凑表格 */
 .be-wrap .be-input-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 0 16px 12px;
+  gap: 8px;
+  padding: 0 16px 10px;
   font-size: 12px;
   color: #666;
 }
 .be-wrap .be-input-row input {
-  width: 200px;
-  padding: 7px 10px;
+  width: 170px;
+  padding: 5px 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-family: inherit;
 }
-.be-wrap .be-hint { font-size: 11px; color: #aaa; }
-.be-table-title { padding: 0 16px 8px; font-size: 12px; color: #888; }
-.comp-table th.be-out-header { line-height: 1.5; }
-.comp-table th .be-sub { display: block; font-weight: 400; font-size: 11px; color: #aaa; }
-.comp-table td.be-cell { font-weight: 700; }
-.comp-table td.be-cell .be-unit { display: block; font-weight: 400; font-size: 10px; color: #bbb; }
-.comp-table td.be-fuel { font-weight: 700; color: #555; background: #fafafa; }
-.comp-table td.be-fuel .be-cur { display: block; font-weight: 400; font-size: 10px; color: var(--accent); }
+.be-wrap .be-current { font-size: 11px; color: #aaa; }
+
+.be-table { font-size: 12px; }
+.be-table th {
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+.be-table td {
+  padding: 5px 8px;
+  text-align: right;
+}
+.be-table th:first-child, .be-table td:first-child { text-align: left; }
+.be-table th.be-th-fuel { color: #888; }
+.be-table .be-fuel { font-weight: 700; color: #555; background: #fafafa; }
+.be-table .be-cell { font-weight: 700; font-variant-numeric: tabular-nums; }
+.be-table .be-na { color: #ddd; font-weight: 400; }
+.be-table th .be-sub { display: block; font-weight: 400; font-size: 10px; color: #bbb; }
+.be-table tr.row-selected td { background: #e8f4fd; }
+.be-table tr.row-selected td.be-fuel { background: #d6ebfb; }
 
 
 /* Purchase Records */
@@ -552,11 +563,11 @@ body {
   <div class="section-title">材料价格（人民币 元）</div>
   <div class="price-row">
     <div class="price-item">
-      <label><span class="dot dot-gold"></span>金子 GOLD（元）</label>
+      <label><span class="dot dot-gold"></span>金子（元）</label>
       <input type="number" id="goldPrice" value="2.6" step="0.001" min="0.001" placeholder="金子价格(元)">
     </div>
     <div class="price-item">
-      <label><span class="dot dot-wood"></span>木头 WOOD（元）</label>
+      <label><span class="dot dot-wood"></span>木头（元）</label>
       <input type="number" id="woodPrice" value="6.7" step="0.01" min="0.001" placeholder="木头价格(元)">
     </div>
     <div class="price-item">
@@ -595,14 +606,14 @@ body {
 </div>
 
 <div class="table-wrap be-wrap">
-  <div class="table-title">保本售价速查 · 按燃料成本倒推（我买这个价的燃料，产出至少卖多少才不亏）</div>
+  <div class="table-title">保本售价速查 · 按燃料成本倒推产出最低售价</div>
   <div class="be-input-row">
-    <label>燃料成本（元/燃料，可填多个用逗号分隔）</label>
+    <label>燃料成本（元/个，可填多个逗号分隔）</label>
     <input type="text" id="fuelCostList" value="0.2,0.3,0.4,0.5" oninput="onFuelListChange()">
-    <span class="be-hint">每格 = 该燃料价下，该设备<strong>单轮不亏本的最低售价</strong>；<span style="color:var(--green)">绿色=现价已高于它（能赚）</span>，<span style="color:var(--red)">红色=现价不够（亏）</span></span>
+    <span class="be-current" id="beCurrent"></span>
   </div>
   <div style="overflow-x:auto">
-    <table class="comp-table" id="beTable"></table>
+    <table class="comp-table be-table" id="beTable"></table>
   </div>
 </div>
 
@@ -828,30 +839,30 @@ function onFuelListChange() {
 function renderBeTable(p) {
   const fuels = parseFuelCostList(p);
   const eqs = EQUIPMENT;
-  let html = '<thead><tr><th style="text-align:left">燃料成本<br><span class="be-sub">元/燃料</span></th>';
+  // 表头两行：设备名 + 单位（去掉产出/现价等长备注，保持紧凑）
+  let html = '<thead><tr><th class="be-th-fuel">燃料<br><span class="be-sub">元/个</span></th>';
   eqs.forEach(eq => {
-    const outLabel = eq.outputType === 'gold' ? '金子' : '木头';
-    const curPrice = eq.outputType === 'gold' ? p.gold : p.wood;
-    html += `<th class="be-out-header">${eq.icon} ${eq.name}<span class="be-sub">产出${outLabel} ${eq.outputPerCycle}/轮 · 现价 ${fmt(curPrice, 3)} 元/${outLabel === '金子' ? '金' : '木'}</span></th>`;
+    const unit = eq.outputType === 'gold' ? '元/金' : '元/木';
+    html += `<th>${eq.icon} ${eq.name}<span class="be-sub">${unit}</span></th>`;
   });
   html += '</tr></thead><tbody>';
 
   fuels.forEach(f => {
     const isCurrent = Math.abs(f - p.fuel) < 1e-9;
-    html += `<tr class="${isCurrent ? 'row-selected' : ''}"><td class="be-fuel" style="text-align:left">${fmt(f, 2)}${isCurrent ? '<span class="be-cur">← 当前燃料价</span>' : ''}</td>`;
+    html += `<tr class="${isCurrent ? 'row-selected' : ''}"><td class="be-fuel">${fmt(f, 2)}</td>`;
     eqs.forEach(eq => {
       const r = calcBreakevenPrice(eq, p, f);
-      if (!r) { html += '<td class="be-cell" style="color:#ccc">卖多贵都亏</td>'; return; }
+      if (!r) { html += '<td class="be-cell be-na">—</td>'; return; }
       const curPrice = eq.outputType === 'gold' ? p.gold : p.wood;
-      const ok = curPrice >= r.price;                                   // 现价 ≥ 保本价 → 能赚
-      const diff = curPrice - r.price;
-      html += `<td class="be-cell" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${fmt(r.price, 3)}`
-           +  `<span class="be-unit">${r.unit}${ok ? ` · 现价高 ${fmt(diff, 3)}` : ` · 差 ${fmt(-diff, 3)}`}</span></td>`;
+      const ok = curPrice >= r.price;                 // 现价 ≥ 保本价 → 能赚
+      html += `<td class="be-cell" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${fmt(r.price, 2)}</td>`;
     });
     html += '</tr>';
   });
   html += '</tbody>';
   document.getElementById('beTable').innerHTML = html;
+  const cur = document.getElementById('beCurrent');
+  if (cur) cur.textContent = `现价 金 ${fmt(p.gold, 3)} · 木 ${fmt(p.wood, 3)}｜绿=现价能赚，红=亏`;
 }
 
 function calcSynthesis(eq, p) {
@@ -984,8 +995,8 @@ function renderDetail(p) {
 
   let detailRows = `
     <div class="detail-row"><span class="dl">装备类型</span><span class="dv">${eq.icon} ${eq.name}</span></div>
-    <div class="detail-row"><span class="dl">合成 GOLD 成本</span><span class="dv">${eq.synth.gold} × ${fmt(p.gold)} = <b>${fmt(goldPart)}</b> 元</span></div>
-    <div class="detail-row"><span class="dl">合成 WOOD 成本</span><span class="dv">${eq.synth.wood} × ${fmt(p.wood)} = <b>${fmt(woodPart)}</b> 元</span></div>
+    <div class="detail-row"><span class="dl">合成·金子成本</span><span class="dv">${eq.synth.gold} × ${fmt(p.gold)} = <b>${fmt(goldPart)}</b> 元</span></div>
+    <div class="detail-row"><span class="dl">合成·木头成本</span><span class="dv">${eq.synth.wood} × ${fmt(p.wood)} = <b>${fmt(woodPart)}</b> 元</span></div>
     <div class="detail-row"><span class="dl">合成 燃料 成本</span><span class="dv">${eq.synth.fuel} × ${fmt(p.fuel)} = <b>${fmt(fuelPart)}</b> 元</span></div>
     <div class="detail-row"><span class="dl">生产周期</span><span class="dv">${eq.cycleH >= 24 ? eq.cycleH/24 + ' 天/轮' : eq.cycleH + ' 小时/轮'}</span></div>
     <div class="detail-row"><span class="dl">每日轮次</span><span class="dv">${fmt(cyclesPerDay, 2)} 次</span></div>
@@ -998,12 +1009,12 @@ function renderDetail(p) {
   } else {
     detailRows += `
       <div class="detail-row"><span class="dl">每轮燃料消耗</span><span class="dv">${eq.runFuelPerCycle} × ${fmt(p.fuel)} = <b>${fmt(eq.runFuelPerCycle * p.fuel)}</b> 元</span></div>
-      <div class="detail-row"><span class="dl">每轮维修金 (GOLD)</span><span class="dv">${eq.repairGold} × ${fmt(p.gold)} = <b>${fmt(eq.repairGold * p.gold)}</b> 元</span></div>
+      <div class="detail-row"><span class="dl">每轮维修金（金子）</span><span class="dv">${eq.repairGold} × ${fmt(p.gold)} = <b>${fmt(eq.repairGold * p.gold)}</b> 元</span></div>
     `;
   }
 
   detailRows += `
-    <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${eq.outputType === 'gold' ? 'GOLD' : 'WOOD'} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> 元</span></div>
+    <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${eq.outputType === 'gold' ? '金子' : '木头'} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> 元</span></div>
     <div class="detail-row"><span class="dl">卖出扣7%手续费</span><span class="dv" style="color:var(--red)">−${fmt(grossPerCycle - grossAfterFee)} 元</span></div>
     <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益 · 可提现额(已扣7%费)</span><span class="dv highlight">${fmt(netPerCycle)} 元</span></div>
     <div class="detail-row" style="background:#fff8e1"><span class="dl">提现后付挂机费(转公司)</span><span class="dv" style="color:#b8860b">每天 ${Number.isInteger(afkOpsPerDay) ? afkOpsPerDay : fmt(afkOpsPerDay)} 次 × ${eq.afkGoldPerOp} 金 × ${fmt(p.gold)} = <b>−${fmt(afkDaily)} 元/天</b> · 月 −${fmt(afkMonthly)} 元</span></div>
@@ -1039,11 +1050,11 @@ function renderDetail(p) {
     <div class="cost-breakdown">
       <div class="cost-chip gold-chip">
         <div class="chip-amt">${fmt(goldPart)}</div>
-        <div class="chip-label">GOLD ${eq.synth.gold}×${fmt(p.gold)} 元</div>
+        <div class="chip-label">金子 ${eq.synth.gold}×${fmt(p.gold)} 元</div>
       </div>
       <div class="cost-chip wood-chip">
         <div class="chip-amt">${fmt(woodPart)}</div>
-        <div class="chip-label">WOOD ${eq.synth.wood}×${fmt(p.wood)} 元</div>
+        <div class="chip-label">木头 ${eq.synth.wood}×${fmt(p.wood)} 元</div>
       </div>
       <div class="cost-chip fuel-chip">
         <div class="chip-amt">${fmt(fuelPart)}</div>
@@ -1061,10 +1072,10 @@ function renderDetail(p) {
                <code>日净收益 = 每轮净收益(已扣7%手续费) / ${eq.cycleH/24}</code>`;
   } else {
     formula = `<code>合成成本 = ${eq.synth.gold}×金子 + ${eq.synth.wood}×木头 + ${eq.synth.fuel}×燃料</code><br>
-               <code>每轮(${eq.cycleH}h)净收益 = ${eq.outputPerCycle}×${eq.outputType === 'gold' ? '金子' : '木头'} − ${eq.runFuelPerCycle}×燃料 − ${eq.repairGold}×金子</code><br>
+               <code>每轮(${eq.cycleH}小时)净收益 = ${eq.outputPerCycle}×${eq.outputType === 'gold' ? '金子' : '木头'} − ${eq.runFuelPerCycle}×燃料 − ${eq.repairGold}×金子</code><br>
                <code>日净收益 = 每轮净收益(已扣7%手续费) × ${cyclesPerDay}</code>`;
   }
-  formula += `<br><code>官方挂机费/月 = (24h ÷ ${eq.afkOpIntervalH}h) × ${eq.afkGoldPerOp}金 × 金子价 × 30 = ${fmt(calcAfkMonthlyU(eq, p))} 元（提现到账后支付给公司，已从净收益扣减）</code>`;
+  formula += `<br><code>官方挂机费/月 = (24小时 ÷ ${eq.afkOpIntervalH}小时) × ${eq.afkGoldPerOp}金 × 金子价 × 30 = ${fmt(calcAfkMonthlyU(eq, p))} 元（提现到账后支付给公司，已从净收益扣减）</code>`;
   formula += `<br><code>月化率 = 月净收益(扣挂机费) / 合成成本 × 100% &nbsp;|&nbsp; 回本天数 = 合成成本 / 日净收益(扣挂机费)</code>`;
   if (calcFuelBreakeven(eq, p).be !== null) {
     const be = calcFuelBreakeven(eq, p);
@@ -1082,8 +1093,8 @@ function renderTable(p) {
     const days = calcPaybackDays(eq, p);
     const rate = calcMonthlyRate(eq, p);
     const afkMonthly = calcAfkMonthlyU(eq, p);
-    const cycleLabel = eq.cycleH >= 24 ? eq.cycleH/24 + '天' : eq.cycleH + 'h';
-    const outputLabel = eq.outputPerCycle + (eq.outputType === 'gold' ? ' GOLD' : ' WOOD');
+    const cycleLabel = eq.cycleH >= 24 ? eq.cycleH/24 + '天' : eq.cycleH + '小时';
+    const outputLabel = eq.outputPerCycle + (eq.outputType === 'gold' ? ' 金子' : ' 木头');
     const be = calcFuelBreakeven(eq, p);
     return { eq, cost, netPerCycle, daily, monthly, days, rate, afkMonthly, cycleLabel, outputLabel, be };
   });
@@ -1235,7 +1246,7 @@ function renderPurchaseList() {
     // Show material prices if available (compat with old records)
     let matInfo = '';
     if (r.goldPrice !== undefined) {
-      matInfo = '<span class="pi-mats">G ' + fmt(r.goldPrice) + ' / W ' + fmt(r.woodPrice) + ' / F ' + fmt(r.fuelPrice) + '</span>';
+      matInfo = '<span class="pi-mats">金 ' + fmt(r.goldPrice) + ' / 木 ' + fmt(r.woodPrice) + ' / 燃 ' + fmt(r.fuelPrice) + '</span>';
     }
     return '<div class="purchase-item">' +
       '<div class="pi-left">' +
