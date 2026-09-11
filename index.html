@@ -317,7 +317,6 @@ body {
 .icon-axe { background: #e8e8e8; }
 .icon-saw { background: #ffe0b2; }
 .icon-truck { background: #c8e6c9; }
-.icon-mine { background: #bbdefb; }
 
 .detail-rows { display: flex; flex-direction: column; gap: 8px; }
 .detail-row {
@@ -746,20 +745,6 @@ const EQUIPMENT = [
     afkGoldPerOp: 0.6,
     afkOpIntervalH: 6,
   },
-  {
-    id: 'mine_truck',
-    name: '采矿车',
-    icon: '⛏️',
-    iconClass: 'icon-mine',
-    synth: { gold: 5000, wood: 24400, fuel: 1000 },
-    cycleH: 6,
-    outputPerCycle: 141,
-    outputType: 'gold',
-    runFuelPerCycle: 80,
-    repairGold: 54,  // mechine(10002) decay270×0.2 校准 16.2→54（2026-09-07）
-    afkGoldPerOp: 0.6,  // 采矿车费率按伐木机暂估，官方如另计价在参数配置里改
-    afkOpIntervalH: 6,
-  },
 ];
 
 
@@ -804,7 +789,7 @@ function calcFuelBreakeven(eq, p) {
 //   产出 × P_产出 × (1-手续费) = 每轮燃料量 × 燃料单价 + 每轮维修金 + 每轮挂机费
 // 维修金/挂机费都是"金"计价，需按金价折算成元。
 //   产出为木头(石斧/手斧/链锯/伐木车)：金开支按当前金价折元 → 直接解出 元/木
-//   产出为金子(土地/采矿车)：金开支本身也是金子，先折成"金单位"再解 → 元/金
+//   产出为金子(土地等)：金开支本身也是金子，先折成"金单位"再解 → 元/金
 function calcBreakevenPrice(eq, p, fuelCost) {
   const rate = calcFeeRate();
   const fuelQty = eq.isFarm ? eq.seedFuel : eq.runFuelPerCycle;
@@ -1292,12 +1277,12 @@ const DEFAULT_FEE_RATE = 0.07;
 function loadConfig() {
   try {
     const saved = JSON.parse(localStorage.getItem('hela_config'));
-    if (saved && saved.equipment) {
-      for (let i = 0; i < EQUIPMENT.length; i++) {
-        if (saved.equipment[i]) {
-          Object.assign(EQUIPMENT[i], saved.equipment[i]);
-        }
-      }
+    if (saved && Array.isArray(saved.equipment)) {
+      // 按 id 匹配恢复（设备列表增删时不会索引错位；匹配不到就跳过）
+      EQUIPMENT.forEach(eq => {
+        const s = saved.equipment.find(e => e && e.id === eq.id);
+        if (s) Object.assign(eq, s);
+      });
       if (saved.feeRate !== undefined) {
         window._feeRate = saved.feeRate;
       }
