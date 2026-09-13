@@ -13,6 +13,7 @@
   --gold: #e8a817;
   --wood: #8b6914;
   --fuel: #e05555;
+  --diamond: #00acc1;
   --hero: #9c27b0;
   --accent: #4a90d9;
   --green: #27ae60;
@@ -117,10 +118,12 @@ body {
 }
 .price-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 .price-item {
-  flex: 1;
+  flex: 1 1 70px;
+  min-width: 70px;
   text-align: center;
 }
 .price-item label {
@@ -140,6 +143,7 @@ body {
 .dot-gold { background: var(--gold); }
 .dot-wood { background: var(--wood); }
 .dot-fuel { background: var(--fuel); }
+.dot-diamond { background: var(--diamond); }
 .dot-hero { background: var(--hero); }
 .price-item input {
   width: 100%;
@@ -317,6 +321,7 @@ body {
 .icon-axe { background: #e8e8e8; }
 .icon-saw { background: #ffe0b2; }
 .icon-truck { background: #c8e6c9; }
+.icon-weapon { background: #e0f7fa; }
 
 .detail-rows { display: flex; flex-direction: column; gap: 8px; }
 .detail-row {
@@ -350,6 +355,7 @@ body {
 .cost-chip.gold-chip { background: #fff8e1; color: #b8860b; }
 .cost-chip.wood-chip { background: #f1f8e9; color: #6b8e23; }
 .cost-chip.fuel-chip { background: #fce4ec; color: #c62828; }
+.cost-chip.diamond-chip { background: #e0f7fa; color: #00838f; }
 
 /* Formula */
 .formula-bar {
@@ -444,6 +450,7 @@ body {
 }
 .be-table th { text-align: center; }
 .be-table th.be-th-fuel { color: #888; }
+.be-table th.be-th-dia { color: #0097a7; }
 .be-table .be-fuel { font-weight: 700; color: #555; background: #fafafa; }
 .be-table .be-cell { font-weight: 700; font-variant-numeric: tabular-nums; }
 .be-table .be-na { color: #ddd; font-weight: 400; }
@@ -574,6 +581,10 @@ body {
       <label><span class="dot dot-fuel"></span>燃料（元）</label>
       <input type="number" id="fuelPrice" value="0.2" step="0.01" min="0.001" placeholder="燃料价格(元)">
     </div>
+    <div class="price-item">
+      <label><span class="dot dot-diamond"></span>钻石（元）</label>
+      <input type="number" id="diamondPrice" value="3.35" step="0.01" min="0" placeholder="钻石价格(元)">
+    </div>
   </div>
   <div class="price-cny">
     人民币汇率
@@ -649,6 +660,10 @@ body {
         <label><span class="dot dot-fuel"></span>燃料价</label>
         <input type="number" id="recFuel" step="0.01" min="0" placeholder="买入价">
       </div>
+      <div class="price-item">
+        <label><span class="dot dot-diamond"></span>钻石价</label>
+        <input type="number" id="recDiamond" step="0.01" min="0" placeholder="买入价">
+      </div>
     </div>
     <div class="cost-auto" id="costHint"></div>
     <div class="modal-btns">
@@ -689,7 +704,7 @@ const EQUIPMENT = [
     name: '土地',
     icon: '🌾',
     iconClass: 'icon-land',
-    synth: { gold: 120, wood: 1000, fuel: 80 },
+    synth: { gold: 120, wood: 1000, diamond: 0, fuel: 80 },
     cycleH: 168,
     outputPerCycle: 240,
     outputType: 'gold',
@@ -705,7 +720,7 @@ const EQUIPMENT = [
     name: '石斧',
     icon: '🪓',
     iconClass: 'icon-axe',
-    synth: { gold: 110, wood: 700, fuel: 80 },
+    synth: { gold: 110, wood: 700, diamond: 0, fuel: 80 },
     cycleH: 6,
     outputPerCycle: 7,
     outputType: 'wood',
@@ -719,7 +734,7 @@ const EQUIPMENT = [
     name: '手斧',
     icon: '🔧',
     iconClass: 'icon-axe',
-    synth: { gold: 700, wood: 3500, fuel: 210 },
+    synth: { gold: 700, wood: 3500, diamond: 0, fuel: 210 },
     cycleH: 6,
     outputPerCycle: 38,
     outputType: 'wood',
@@ -733,7 +748,7 @@ const EQUIPMENT = [
     name: '链锯',
     icon: '⚡',
     iconClass: 'icon-saw',
-    synth: { gold: 1800, wood: 10000, fuel: 600 },
+    synth: { gold: 1800, wood: 10000, diamond: 0, fuel: 600 },
     cycleH: 6,
     outputPerCycle: 108,
     outputType: 'wood',
@@ -747,12 +762,69 @@ const EQUIPMENT = [
     name: '伐木车',
     icon: '🚛',
     iconClass: 'icon-truck',
-    synth: { gold: 4000, wood: 22500, fuel: 1400 },
+    synth: { gold: 4000, wood: 22500, diamond: 0, fuel: 1400 },
     cycleH: 6,
     outputPerCycle: 316,
     outputType: 'wood',
     runFuelPerCycle: 1290,  // 服务端 mechine.oilCost，每日自动同步
     repairGold: 54,
+    afkGoldPerOp: 0.6,
+    afkOpIntervalH: 6,
+  },
+  // === 钻石装备（服务端 mechine 50001-50004 / synthesis，产出钻石，每 6h 一轮）===
+  {
+    id: 'sword',
+    name: '断剑',
+    icon: '🗡️',
+    iconClass: 'icon-weapon',
+    synth: { gold: 500, wood: 0, diamond: 750, fuel: 2500 },  // 服务端 synthesis.resId，每日自动同步
+    cycleH: 6,
+    outputPerCycle: 6,
+    outputType: 'diamond',
+    runFuelPerCycle: 8,  // 服务端 mechine.oilCost，每日自动同步
+    repairGold: 6,       // 耐久衰减 30 × 0.2
+    afkGoldPerOp: 0.6,
+    afkOpIntervalH: 6,
+  },
+  {
+    id: 'bow',
+    name: '圣弓',
+    icon: '🏹',
+    iconClass: 'icon-weapon',
+    synth: { gold: 1500, wood: 0, diamond: 2250, fuel: 7000 },
+    cycleH: 6,
+    outputPerCycle: 18,
+    outputType: 'diamond',
+    runFuelPerCycle: 24,
+    repairGold: 16,      // 耐久衰减 80 × 0.2
+    afkGoldPerOp: 0.6,
+    afkOpIntervalH: 6,
+  },
+  {
+    id: 'staff',
+    name: '法杖',
+    icon: '🔮',
+    iconClass: 'icon-weapon',
+    synth: { gold: 5800, wood: 0, diamond: 9000, fuel: 30000 },  // 官方图写 28000 燃料，服务端实际 30000
+    cycleH: 6,
+    outputPerCycle: 72,
+    outputType: 'diamond',
+    runFuelPerCycle: 96,
+    repairGold: 52,      // 耐久衰减 260 × 0.2
+    afkGoldPerOp: 0.6,
+    afkOpIntervalH: 6,
+  },
+  {
+    id: 'gun',
+    name: '科技枪',
+    icon: '🔫',
+    iconClass: 'icon-weapon',
+    synth: { gold: 18000, wood: 0, diamond: 27000, fuel: 82000 },
+    cycleH: 6,
+    outputPerCycle: 216,
+    outputType: 'diamond',
+    runFuelPerCycle: 288,
+    repairGold: 156,     // 耐久衰减 780 × 0.2
     afkGoldPerOp: 0.6,
     afkOpIntervalH: 6,
   },
@@ -763,12 +835,27 @@ const FEE_RATE = 0.07;  // 7% 卖出手续费（2026-09-08 由 3% 上调）
 
 let currentEq = EQUIPMENT[0];
 
+const OUTPUT_TYPES = {
+  gold:    { label: '金子', unit: '元/金' },
+  wood:    { label: '木头', unit: '元/木' },
+  diamond: { label: '钻石', unit: '元/钻' },
+};
+
+function outputMeta(eq) { return OUTPUT_TYPES[eq.outputType] || OUTPUT_TYPES.gold; }
+
+function outputPriceOf(eq, p) {
+  if (eq.outputType === 'gold') return p.gold;
+  if (eq.outputType === 'wood') return p.wood;
+  return p.diamond;
+}
+
 // ==================== 计算函数 ====================
 function getPrices() {
   return {
     gold: parseFloat(document.getElementById('goldPrice').value) || 0,
     wood: parseFloat(document.getElementById('woodPrice').value) || 0,
     fuel: parseFloat(document.getElementById('fuelPrice').value) || 0,
+    diamond: parseFloat(document.getElementById('diamondPrice').value) || 0,
     cny: parseFloat(document.getElementById('cnyRate').value) || 6.7,
   };
 }
@@ -783,7 +870,7 @@ function calcFeeRate() {
 
 function calcFuelBreakeven(eq, p) {
   const rate = calcFeeRate();
-  const outputPrice = eq.outputType === 'gold' ? p.gold : p.wood;
+  const outputPrice = outputPriceOf(eq, p);
   const gross = eq.outputPerCycle * outputPrice * (1 - rate);       // 每轮产出值(元,扣卖出手续费)
   const fuelQty = eq.isFarm ? eq.seedFuel : eq.runFuelPerCycle;     // 每轮燃料消耗
   const repair = (eq.isFarm ? 0 : eq.repairGold) * p.gold;          // 每轮维修金(元)
@@ -816,11 +903,11 @@ function calcBreakevenPrice(eq, p, fuelCost) {
     if (netGold <= 0) return null;                                      // 单轮净金为负 → 卖多贵都亏
     return { price: fuelYuan / netGold, unit: '元/金' };
   }
-  // 产出为木头：金开支按当前金价折成元后并入成本
+  // 产出为木头/钻石：金开支按当前金价折成元后并入成本
   const costYuan = fuelYuan + goldPerCycle * p.gold;
-  const netWood = output * (1 - rate);
-  if (netWood <= 0) return null;
-  return { price: costYuan / netWood, unit: '元/木' };
+  const netOut = output * (1 - rate);
+  if (netOut <= 0) return null;
+  return { price: costYuan / netOut, unit: outputMeta(eq).unit };
 }
 
 function parseFuelCostList(p) {
@@ -842,8 +929,8 @@ function renderBeTable(p) {
   // 表头两行：设备名 + 单位（去掉产出/现价等长备注，保持紧凑）
   let html = '<thead><tr><th class="be-th-fuel">燃料<br><span class="be-sub">元/个</span></th>';
   eqs.forEach(eq => {
-    const unit = eq.outputType === 'gold' ? '元/金' : '元/木';
-    html += `<th>${eq.icon} ${eq.name}<span class="be-sub">${unit}</span></th>`;
+    const cls = eq.outputType === 'diamond' ? ' class="be-th-dia"' : '';
+    html += `<th${cls}>${eq.icon} ${eq.name}<span class="be-sub">${outputMeta(eq).unit}</span></th>`;
   });
   html += '</tr></thead><tbody>';
 
@@ -853,7 +940,7 @@ function renderBeTable(p) {
     eqs.forEach(eq => {
       const r = calcBreakevenPrice(eq, p, f);
       if (!r) { html += '<td class="be-cell be-na">—</td>'; return; }
-      const curPrice = eq.outputType === 'gold' ? p.gold : p.wood;
+      const curPrice = outputPriceOf(eq, p);
       const ok = curPrice >= r.price;                 // 现价 ≥ 保本价 → 能赚
       html += `<td class="be-cell" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${fmt(r.price, 2)}</td>`;
     });
@@ -862,17 +949,17 @@ function renderBeTable(p) {
   html += '</tbody>';
   document.getElementById('beTable').innerHTML = html;
   const cur = document.getElementById('beCurrent');
-  if (cur) cur.textContent = `现价 金 ${fmt(p.gold, 3)} · 木 ${fmt(p.wood, 3)}｜绿=现价能赚，红=亏`;
+  if (cur) cur.textContent = `现价 金 ${fmt(p.gold, 3)} · 木 ${fmt(p.wood, 3)} · 钻 ${fmt(p.diamond, 3)}｜绿=现价能赚，红=亏`;
 }
 
 function calcSynthesis(eq, p) {
-  return eq.synth.gold * p.gold + eq.synth.wood * p.wood + eq.synth.fuel * p.fuel;
+  return eq.synth.gold * p.gold + eq.synth.wood * p.wood
+       + (eq.synth.diamond || 0) * p.diamond + eq.synth.fuel * p.fuel;
 }
 
 function calcNetPerCycle(eq, p, withFee) {
   if (withFee === undefined) withFee = true;
-  const outputPrice = eq.outputType === 'gold' ? p.gold : p.wood;
-  const gross = eq.outputPerCycle * outputPrice * (withFee ? (1 - FEE_RATE) : 1);
+  const gross = eq.outputPerCycle * outputPriceOf(eq, p) * (withFee ? (1 - calcFeeRate()) : 1);
   if (eq.isFarm) {
     return gross - eq.seedFuel * p.fuel;
   }
@@ -986,18 +1073,24 @@ function renderDetail(p) {
 
   const goldPart = eq.synth.gold * p.gold;
   const woodPart = eq.synth.wood * p.wood;
+  const diamondPart = (eq.synth.diamond || 0) * p.diamond;
   const fuelPart = eq.synth.fuel * p.fuel;
 
   const cyclesPerDay = 24 / eq.cycleH;
-  const outputPrice = eq.outputType === 'gold' ? p.gold : p.wood;
+  const meta = outputMeta(eq);
+  const outputPrice = outputPriceOf(eq, p);
   const grossPerCycle = eq.outputPerCycle * outputPrice;
-  const grossAfterFee = grossPerCycle * (1 - FEE_RATE);
+  const grossAfterFee = grossPerCycle * (1 - calcFeeRate());
+
+  let synthRows = '';
+  if (eq.synth.gold > 0) synthRows += `<div class="detail-row"><span class="dl">合成·金子成本</span><span class="dv">${eq.synth.gold} × ${fmt(p.gold)} = <b>${fmt(goldPart)}</b> 元</span></div>`;
+  if (eq.synth.wood > 0) synthRows += `<div class="detail-row"><span class="dl">合成·木头成本</span><span class="dv">${eq.synth.wood} × ${fmt(p.wood)} = <b>${fmt(woodPart)}</b> 元</span></div>`;
+  if ((eq.synth.diamond || 0) > 0) synthRows += `<div class="detail-row"><span class="dl">合成·钻石成本</span><span class="dv">${eq.synth.diamond} × ${fmt(p.diamond)} = <b>${fmt(diamondPart)}</b> 元</span></div>`;
+  if (eq.synth.fuel > 0) synthRows += `<div class="detail-row"><span class="dl">合成 燃料 成本</span><span class="dv">${eq.synth.fuel} × ${fmt(p.fuel)} = <b>${fmt(fuelPart)}</b> 元</span></div>`;
 
   let detailRows = `
     <div class="detail-row"><span class="dl">装备类型</span><span class="dv">${eq.icon} ${eq.name}</span></div>
-    <div class="detail-row"><span class="dl">合成·金子成本</span><span class="dv">${eq.synth.gold} × ${fmt(p.gold)} = <b>${fmt(goldPart)}</b> 元</span></div>
-    <div class="detail-row"><span class="dl">合成·木头成本</span><span class="dv">${eq.synth.wood} × ${fmt(p.wood)} = <b>${fmt(woodPart)}</b> 元</span></div>
-    <div class="detail-row"><span class="dl">合成 燃料 成本</span><span class="dv">${eq.synth.fuel} × ${fmt(p.fuel)} = <b>${fmt(fuelPart)}</b> 元</span></div>
+    ${synthRows}
     <div class="detail-row"><span class="dl">生产周期</span><span class="dv">${eq.cycleH >= 24 ? eq.cycleH/24 + ' 天/轮' : eq.cycleH + ' 小时/轮'}</span></div>
     <div class="detail-row"><span class="dl">每日轮次</span><span class="dv">${fmt(cyclesPerDay, 2)} 次</span></div>
   `;
@@ -1014,7 +1107,7 @@ function renderDetail(p) {
   }
 
   detailRows += `
-    <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${eq.outputType === 'gold' ? '金子' : '木头'} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> 元</span></div>
+    <div class="detail-row"><span class="dl">每轮产出值</span><span class="dv">${eq.outputPerCycle} ${meta.label} × ${fmt(outputPrice)} = <b>${fmt(grossPerCycle)}</b> 元</span></div>
     <div class="detail-row"><span class="dl">卖出扣7%手续费</span><span class="dv" style="color:var(--red)">−${fmt(grossPerCycle - grossAfterFee)} 元</span></div>
     <div class="detail-row" style="background:#e8f5e9"><span class="dl">每轮净收益 · 可提现额(已扣7%费)</span><span class="dv highlight">${fmt(netPerCycle)} 元</span></div>
     <div class="detail-row" style="background:#fff8e1"><span class="dl">提现后付挂机费(转公司)</span><span class="dv" style="color:#b8860b">每天 ${Number.isInteger(afkOpsPerDay) ? afkOpsPerDay : fmt(afkOpsPerDay)} 次 × ${eq.afkGoldPerOp} 金 × ${fmt(p.gold)} = <b>−${fmt(afkDaily)} 元/天</b> · 月 −${fmt(afkMonthly)} 元</span></div>
@@ -1045,34 +1138,33 @@ function renderDetail(p) {
     <div class="detail-row"><span class="dl">回本天数(不含挂机费, 7%费仍扣)</span><span class="dv" style="color:#aaa">${isFinite(calcPaybackDays(eq, p, true, false)) ? fmt(calcPaybackDays(eq, p, true, false)) + ' 天' : '永不回本'}</span></div>
   `;
 
+  const chips = [];
+  if (eq.synth.gold > 0) chips.push(`<div class="cost-chip gold-chip"><div class="chip-amt">${fmt(goldPart)}</div><div class="chip-label">金子 ${eq.synth.gold}×${fmt(p.gold)} 元</div></div>`);
+  if (eq.synth.wood > 0) chips.push(`<div class="cost-chip wood-chip"><div class="chip-amt">${fmt(woodPart)}</div><div class="chip-label">木头 ${eq.synth.wood}×${fmt(p.wood)} 元</div></div>`);
+  if ((eq.synth.diamond || 0) > 0) chips.push(`<div class="cost-chip diamond-chip"><div class="chip-amt">${fmt(diamondPart)}</div><div class="chip-label">钻石 ${eq.synth.diamond}×${fmt(p.diamond)} 元</div></div>`);
+  if (eq.synth.fuel > 0) chips.push(`<div class="cost-chip fuel-chip"><div class="chip-amt">${fmt(fuelPart)}</div><div class="chip-label">燃料 ${eq.synth.fuel}×${fmt(p.fuel)} 元</div></div>`);
+
   document.getElementById('detailCard').innerHTML = `
     <div class="eq-name"><span class="icon ${eq.iconClass}">${eq.icon}</span>${eq.name} · 详细数据</div>
-    <div class="cost-breakdown">
-      <div class="cost-chip gold-chip">
-        <div class="chip-amt">${fmt(goldPart)}</div>
-        <div class="chip-label">金子 ${eq.synth.gold}×${fmt(p.gold)} 元</div>
-      </div>
-      <div class="cost-chip wood-chip">
-        <div class="chip-amt">${fmt(woodPart)}</div>
-        <div class="chip-label">木头 ${eq.synth.wood}×${fmt(p.wood)} 元</div>
-      </div>
-      <div class="cost-chip fuel-chip">
-        <div class="chip-amt">${fmt(fuelPart)}</div>
-        <div class="chip-label">燃料 ${eq.synth.fuel}×${fmt(p.fuel)} 元</div>
-      </div>
-    </div>
+    <div class="cost-breakdown">${chips.join('')}</div>
     <div class="detail-rows">${detailRows}</div>
   `;
 
   // Formula
+  const synthTerms = [];
+  if (eq.synth.gold > 0) synthTerms.push(`${eq.synth.gold}×金子`);
+  if (eq.synth.wood > 0) synthTerms.push(`${eq.synth.wood}×木头`);
+  if ((eq.synth.diamond || 0) > 0) synthTerms.push(`${eq.synth.diamond}×钻石`);
+  if (eq.synth.fuel > 0) synthTerms.push(`${eq.synth.fuel}×燃料`);
+
   let formula;
   if (eq.isFarm) {
-    formula = `<code>合成成本 = ${eq.synth.gold}×金子 + ${eq.synth.wood}×木头 + ${eq.synth.fuel}×燃料</code><br>
+    formula = `<code>合成成本 = ${synthTerms.join(' + ')}</code><br>
                <code>每轮(${eq.cycleH/24}天)净收益 = ${eq.outputPerCycle}×金子 − ${eq.seedFuel}×燃料</code><br>
                <code>日净收益 = 每轮净收益(已扣7%手续费) / ${eq.cycleH/24}</code>`;
   } else {
-    formula = `<code>合成成本 = ${eq.synth.gold}×金子 + ${eq.synth.wood}×木头 + ${eq.synth.fuel}×燃料</code><br>
-               <code>每轮(${eq.cycleH}小时)净收益 = ${eq.outputPerCycle}×${eq.outputType === 'gold' ? '金子' : '木头'} − ${eq.runFuelPerCycle}×燃料 − ${eq.repairGold}×金子</code><br>
+    formula = `<code>合成成本 = ${synthTerms.join(' + ')}</code><br>
+               <code>每轮(${eq.cycleH}小时)净收益 = ${eq.outputPerCycle}×${meta.label} − ${eq.runFuelPerCycle}×燃料 − ${eq.repairGold}×金子</code><br>
                <code>日净收益 = 每轮净收益(已扣7%手续费) × ${cyclesPerDay}</code>`;
   }
   formula += `<br><code>官方挂机费/月 = (24小时 ÷ ${eq.afkOpIntervalH}小时) × ${eq.afkGoldPerOp}金 × 金子价 × 30 = ${fmt(calcAfkMonthlyU(eq, p))} 元（提现到账后支付给公司，已从净收益扣减）</code>`;
@@ -1094,7 +1186,7 @@ function renderTable(p) {
     const rate = calcMonthlyRate(eq, p);
     const afkMonthly = calcAfkMonthlyU(eq, p);
     const cycleLabel = eq.cycleH >= 24 ? eq.cycleH/24 + '天' : eq.cycleH + '小时';
-    const outputLabel = eq.outputPerCycle + (eq.outputType === 'gold' ? ' 金子' : ' 木头');
+    const outputLabel = eq.outputPerCycle + ' ' + outputMeta(eq).label;
     const be = calcFuelBreakeven(eq, p);
     return { eq, cost, netPerCycle, daily, monthly, days, rate, afkMonthly, cycleLabel, outputLabel, be };
   });
@@ -1173,6 +1265,7 @@ function openAddModal() {
   document.getElementById('recGold').value = p.gold;
   document.getElementById('recWood').value = p.wood;
   document.getElementById('recFuel').value = p.fuel;
+  document.getElementById('recDiamond').value = p.diamond;
   document.getElementById('addModal').style.display = 'flex';
   document.getElementById('recordEq').onchange = updateCostHint;
   updateCostHint();
@@ -1184,14 +1277,18 @@ function updateCostHint() {
   const g = parseFloat(document.getElementById('recGold').value) || 0;
   const w = parseFloat(document.getElementById('recWood').value) || 0;
   const f = parseFloat(document.getElementById('recFuel').value) || 0;
-  const cost = eq.synth.gold * g + eq.synth.wood * w + eq.synth.fuel * f;
+  const d = parseFloat(document.getElementById('recDiamond').value) || 0;
+  const cost = eq.synth.gold * g + eq.synth.wood * w + (eq.synth.diamond || 0) * d + eq.synth.fuel * f;
+  const parts = [eq.synth.gold + '×' + fmt(g)];
+  if (eq.synth.wood > 0) parts.push(eq.synth.wood + '×' + fmt(w));
+  if ((eq.synth.diamond || 0) > 0) parts.push(eq.synth.diamond + '×' + fmt(d));
+  parts.push(eq.synth.fuel + '×' + fmt(f));
   document.getElementById('costHint').textContent =
-    '装备合成成本 = ' + eq.synth.gold + '×' + fmt(g) + ' + ' +
-    eq.synth.wood + '×' + fmt(w) + ' + ' + eq.synth.fuel + '×' + fmt(f) +
-    ' = ' + fmt(cost) + ' 元';
+    '装备合成成本 = ' + parts.join(' + ') + ' = ' + fmt(cost) + ' 元';
   document.getElementById('recGold').oninput = updateCostHint;
   document.getElementById('recWood').oninput = updateCostHint;
   document.getElementById('recFuel').oninput = updateCostHint;
+  document.getElementById('recDiamond').oninput = updateCostHint;
 }
 
 function closeAddModal() {
@@ -1205,13 +1302,14 @@ function saveRecord() {
   const g = parseFloat(document.getElementById('recGold').value) || 0;
   const w = parseFloat(document.getElementById('recWood').value) || 0;
   const f = parseFloat(document.getElementById('recFuel').value) || 0;
+  const d = parseFloat(document.getElementById('recDiamond').value) || 0;
   if (!date) { alert('请选择日期'); return; }
-  if (!g && !w && !f) { alert('请填写采购价格'); return; }
-  const cost = eq.synth.gold * g + eq.synth.wood * w + eq.synth.fuel * f;
+  if (!g && !w && !f && !d) { alert('请填写采购价格'); return; }
+  const cost = eq.synth.gold * g + eq.synth.wood * w + (eq.synth.diamond || 0) * d + eq.synth.fuel * f;
   const records = loadRecords();
   records.push({
     id: Date.now(), eqId: eqId, date: date,
-    goldPrice: g, woodPrice: w, fuelPrice: f, cost: cost
+    goldPrice: g, woodPrice: w, fuelPrice: f, diamondPrice: d, cost: cost
   });
   records.sort((a, b) => b.id - a.id);
   saveRecords(records);
@@ -1246,7 +1344,7 @@ function renderPurchaseList() {
     // Show material prices if available (compat with old records)
     let matInfo = '';
     if (r.goldPrice !== undefined) {
-      matInfo = '<span class="pi-mats">金 ' + fmt(r.goldPrice) + ' / 木 ' + fmt(r.woodPrice) + ' / 燃 ' + fmt(r.fuelPrice) + '</span>';
+      matInfo = '<span class="pi-mats">金 ' + fmt(r.goldPrice) + ' / 木 ' + fmt(r.woodPrice) + ' / 燃 ' + fmt(r.fuelPrice) + (r.diamondPrice ? ' / 钻 ' + fmt(r.diamondPrice) : '') + '</span>';
     }
     return '<div class="purchase-item">' +
       '<div class="pi-left">' +
@@ -1280,6 +1378,7 @@ document.addEventListener('click', function(e) {
 document.getElementById('goldPrice').addEventListener('input', renderAll);
 document.getElementById('woodPrice').addEventListener('input', renderAll);
 document.getElementById('fuelPrice').addEventListener('input', renderAll);
+document.getElementById('diamondPrice').addEventListener('input', renderAll);
 
 // ==================== 参数配置 ====================
 const DEFAULT_EQUIPMENT = JSON.parse(JSON.stringify(EQUIPMENT));
@@ -1299,13 +1398,20 @@ function loadConfig() {
       }
     }
   } catch(e) {}
+  // 旧版本配置可能缺新字段（如 synth.diamond），补默认值避免 undefined 参与计算
+  EQUIPMENT.forEach(eq => {
+    const def = DEFAULT_EQUIPMENT.find(e => e.id === eq.id);
+    ['gold', 'wood', 'diamond', 'fuel'].forEach(k => {
+      if (typeof eq.synth[k] !== 'number') eq.synth[k] = def.synth[k];
+    });
+  });
 }
 
 function saveConfigData() {
   const data = {
     equipment: EQUIPMENT.map(eq => ({
       id: eq.id,
-      synth: { gold: eq.synth.gold, wood: eq.synth.wood, fuel: eq.synth.fuel },
+      synth: { gold: eq.synth.gold, wood: eq.synth.wood, diamond: eq.synth.diamond || 0, fuel: eq.synth.fuel },
       cycleH: eq.cycleH,
       outputPerCycle: eq.outputPerCycle,
       outputType: eq.outputType,
@@ -1334,12 +1440,13 @@ function openConfig() {
     html += '<div class="config-row">';
     html += '<div class="config-field"><label>合成·金子</label><input type="number" id="cfg_' + idx + '_sg" value="' + eq.synth.gold + '" step="1"></div>';
     html += '<div class="config-field"><label>合成·木头</label><input type="number" id="cfg_' + idx + '_sw" value="' + eq.synth.wood + '" step="1"></div>';
+    html += '<div class="config-field"><label>合成·钻石</label><input type="number" id="cfg_' + idx + '_sdm" value="' + (eq.synth.diamond || 0) + '" step="1"></div>';
     html += '<div class="config-field"><label>合成·燃料</label><input type="number" id="cfg_' + idx + '_sf" value="' + eq.synth.fuel + '" step="1"></div>';
     html += '</div>';
     html += '<div class="config-row">';
     html += '<div class="config-field"><label>周期(小时)</label><input type="number" id="cfg_' + idx + '_ch" value="' + eq.cycleH + '" step="1"></div>';
     html += '<div class="config-field"><label>产出/轮</label><input type="number" id="cfg_' + idx + '_op" value="' + eq.outputPerCycle + '" step="1"></div>';
-    html += '<div class="config-field"><label>产出类型</label><select id="cfg_' + idx + '_ot"><option value="gold"' + (eq.outputType === 'gold' ? ' selected' : '') + '>金子</option><option value="wood"' + (eq.outputType === 'wood' ? ' selected' : '') + '>木头</option></select></div>';
+    html += '<div class="config-field"><label>产出类型</label><select id="cfg_' + idx + '_ot"><option value="gold"' + (eq.outputType === 'gold' ? ' selected' : '') + '>金子</option><option value="wood"' + (eq.outputType === 'wood' ? ' selected' : '') + '>木头</option><option value="diamond"' + (eq.outputType === 'diamond' ? ' selected' : '') + '>钻石</option></select></div>';
     html += '</div>';
     if (!eq.isFarm) {
       html += '<div class="config-row">';
@@ -1372,6 +1479,7 @@ function saveConfig() {
   EQUIPMENT.forEach((eq, idx) => {
     eq.synth.gold = parseInt(document.getElementById('cfg_' + idx + '_sg').value) || 0;
     eq.synth.wood = parseInt(document.getElementById('cfg_' + idx + '_sw').value) || 0;
+    eq.synth.diamond = parseInt(document.getElementById('cfg_' + idx + '_sdm').value) || 0;
     eq.synth.fuel = parseInt(document.getElementById('cfg_' + idx + '_sf').value) || 0;
     eq.cycleH = parseInt(document.getElementById('cfg_' + idx + '_ch').value) || 1;
     eq.outputPerCycle = parseInt(document.getElementById('cfg_' + idx + '_op').value) || 0;
@@ -1403,19 +1511,6 @@ function resetConfig() {
   renderAll();
   renderTabs();
 }
-
-// Override calcNetPerCycle to use configurable fee rate
-const _origCalcNetPerCycle2 = calcNetPerCycle;
-calcNetPerCycle = function(eq, p, withFee) {
-  if (withFee === undefined) withFee = true;
-  const outputPrice = eq.outputType === 'gold' ? p.gold : p.wood;
-  const rate = (window._feeRate !== undefined) ? window._feeRate : FEE_RATE;
-  const gross = eq.outputPerCycle * outputPrice * (withFee ? (1 - rate) : 1);
-  if (eq.isFarm) {
-    return gross - eq.seedFuel * p.fuel;
-  }
-  return gross - eq.runFuelPerCycle * p.fuel - eq.repairGold * p.gold;
-};
 
 // 初始化
 loadConfig();
