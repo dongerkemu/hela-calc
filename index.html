@@ -457,6 +457,8 @@ body {
 .be-table th .be-sub { display: block; font-weight: 400; font-size: 10px; color: #bbb; }
 .be-table tr.row-selected td { background: #e8f4fd; }
 .be-table tr.row-selected td.be-fuel { background: #d6ebfb; }
+.equil-note { display: block; font-size: 11px; color: #999; line-height: 1.8; }
+.equil-note b { color: #555; }
 
 
 /* Purchase Records */
@@ -625,6 +627,19 @@ body {
   </div>
   <div style="overflow-x:auto">
     <table class="comp-table be-table" id="beTable"></table>
+  </div>
+</div>
+
+<div class="table-wrap be-wrap">
+  <div class="table-title">四币均衡价 · 零利润反解（金/木/钻 都应是燃料价的固定倍数）</div>
+  <div style="overflow-x:auto">
+    <table class="comp-table be-table" id="equilTable"></table>
+  </div>
+  <div style="overflow-x:auto;margin-top:10px">
+    <table class="comp-table be-table" id="equilDiag"></table>
+  </div>
+  <div class="be-input-row" style="padding-top:2px">
+    <span class="equil-note" id="equilNote"></span>
   </div>
 </div>
 
@@ -935,6 +950,7 @@ function parseFuelCostList(p) {
 
 function onFuelListChange() {
   renderBeTable(getPrices());
+  renderEquilTable(getPrices());
 }
 
 function renderBeTable(p) {
@@ -964,6 +980,100 @@ function renderBeTable(p) {
   document.getElementById('beTable').innerHTML = html;
   const cur = document.getElementById('beCurrent');
   if (cur) cur.textContent = `现价 金 ${fmt(p.gold, 3)} · 木 ${fmt(p.wood, 3)} · 钻 ${fmt(p.diamond, 3)}｜绿=现价能赚，红=亏`;
+}
+
+// ============ 四币均衡价（全链条零利润反解） ============
+// 燃料是唯一外部投入，均衡里 金/木/钻 都应是燃料价的固定倍数：
+//   金：土地是唯一金源 → 产出×P金×(1−费) = 种子燃料×燃料价 + 挂机费(金)×P金
+//   木/钻：取各自（在给定金价下）零利润价最低的设备 = 边际生产者，代入同一式
+function perCycleFuel(eq) { return eq.isFarm ? eq.seedFuel : eq.runFuelPerCycle; }
+function perCycleGoldCost(eq) {
+  return (eq.isFarm ? 0 : eq.repairGold) + (eq.cycleH / eq.afkOpIntervalH) * eq.afkGoldPerOp;
+}
+
+function marginalEquilPrice(type, fuelCost, goldPrice) {
+  const rate = calcFeeRate();
+  let best = null;
+  EQUIPMENT.filter(e => e.outputType === type).forEach(eq => {
+    const fuelQty = perCycleFuel(eq), gpc = perCycleGoldCost(eq);
+    let price = null, net = null;
+    if (type === 'gold') {
+      net = eq.outputPerCycle * (1 - rate) - gpc;          // 净产出(金单位)，开支同为金
+      if (net <= 0 || fuelQty <= 0) return;
+      price = fuelQty * fuelCost / net;
+    } else {
+      net = eq.outputPerCycle * (1 - rate);
+      if (net <= 0) return;
+      price = (fuelQty * fuelCost + gpc * goldPrice) / net;
+    }
+    if (!best || price < best.price) best = { price: price, eq: eq, net: net, fuelQty: fuelQty, gpc: gpc };
+  });
+  return best;
+}
+
+function equilAt(fuelCost) {
+  const g = marginalEquilPrice('gold', fuelCost, 0);
+  const pg = g ? g.price : null;
+  return {
+    g: g, pg: pg,
+    w: pg !== null ? marginalEquilPrice('wood', fuelCost, pg) : null,
+    d: pg !== null ? marginalEquilPrice('diamond', fuelCost, pg) : null,
+  };
+}
+
+// 把市场现价代回该设备的零利润式，反解"要让这个市场不赚不亏，金价该是多少"
+function impliedGoldPrice(o, curPrice, fuelCost) {
+  if (!o || !o.gpc || o.gpc <= 0) return null;
+  return (curPrice * o.net - o.fuelQty * fuelCost) / o.gpc;
+}
+
+function renderEquilTable(p) {
+  const fuels = parseFuelCostList(p);
+  const rows = fuels.map(f => Object.assign({ f: f }, equilAt(f)));
+  const cur = Object.assign({ f: p.fuel }, equilAt(p.fuel));
+  const nm = o => (o && o.eq) ? o.eq.icon + ' ' + o.eq.name : '—';
+
+  let h = '<thead><tr><th class="be-th-fuel">燃料<br><span class="be-sub">元/个</span></th>'
+        + `<th>金<span class="be-sub">${nm(cur.g)} 定 · 元/金</span></th>`
+        + `<th>木<span class="be-sub">${nm(cur.w)} 定 · 元/木</span></th>`
+        + `<th class="be-th-dia">钻<span class="be-sub">${nm(cur.d)} 定 · 元/钻</span></th></tr></thead><tbody>`;
+  rows.forEach(r => {
+    const sel = Math.abs(r.f - p.fuel) < 1e-9;
+    h += `<tr class="${sel ? 'row-selected' : ''}"><td class="be-fuel">${fmt(r.f, 2)}</td>`;
+    [r.g, r.w, r.d].forEach(o => {
+      h += `<td class="be-cell">${o ? fmt(o.price, 2) : '—'}</td>`;
+    });
+    h += '</tr>';
+  });
+  document.getElementById('equilTable').innerHTML = h + '</tbody>';
+
+  const mk = (label, o, curPrice, implied) => {
+    const ratio = o ? curPrice / o.price : null;
+    const col = ratio === null ? 'inherit' : (ratio >= 1 ? 'var(--green)' : 'var(--red)');
+    return `<tr><td class="eq-name-col">${label}</td><td class="be-cell">${fmt(curPrice, 3)}</td>`
+         + `<td class="be-cell">${o ? fmt(o.price, 3) : '—'}</td>`
+         + `<td class="be-cell" style="color:${col}">${ratio === null ? '—' : fmt(ratio * 100, 0) + '%'}</td>`
+         + `<td class="be-cell">${implied === null ? '—' : fmt(implied, 2)}</td></tr>`;
+  };
+  let d2 = '<thead><tr><th>市场 · 边际生产者</th><th>现价</th><th>均衡价</th><th>现价/均衡</th>'
+         + '<th>该市场反解的合理金价</th></tr></thead><tbody>'
+         + mk('金 · ' + nm(cur.g), cur.g, p.gold, cur.pg)
+         + mk('木 · ' + nm(cur.w), cur.w, p.wood, impliedGoldPrice(cur.w, p.wood, p.fuel))
+         + mk('钻 · ' + nm(cur.d), cur.d, p.diamond, impliedGoldPrice(cur.d, p.diamond, p.fuel))
+         + '</tbody>';
+  document.getElementById('equilDiag').innerHTML = d2;
+
+  const note = document.getElementById('equilNote');
+  if (note) {
+    const dev = [['金', p.gold, cur.g], ['木', p.wood, cur.w], ['钻', p.diamond, cur.d]]
+      .filter(r => r[2]).sort((a, b) => Math.abs(Math.log(a[1] / a[2].price)) - Math.abs(Math.log(b[1] / b[2].price)));
+    const worst = dev.length ? dev[dev.length - 1] : null;
+    note.innerHTML = `燃料 ${fmt(p.fuel, 2)} 元 → 全链条均衡价 金 <b>${fmt(cur.pg, 3)}</b>`
+      + ` · 木 <b>${cur.w ? fmt(cur.w.price, 3) : '—'}</b> · 钻 <b>${cur.d ? fmt(cur.d.price, 3) : '—'}</b>`
+      + `（金 ${fmt(cur.pg / p.fuel, 1)}× / 木 ${cur.w ? fmt(cur.w.price / p.fuel, 1) : '—'}× / 钻 ${cur.d ? fmt(cur.d.price / p.fuel, 1) : '—'}× 燃料价）`
+      + (worst ? `<br>偏离最大的市场：<b>${worst[0]}</b>（现价 ${fmt(worst[1], 3)} vs 均衡 ${fmt(worst[2].price, 3)}）` : '')
+      + `<br>「反解的合理金价」= 让该市场按现价刚好不赚不亏所需的金价，三个数越接近、四币越自洽；差额即资金该流向哪里的信号。`;
+  }
 }
 
 function calcSynthesis(eq, p) {
@@ -1032,6 +1142,7 @@ function renderAll() {
   renderDetail(p);
   renderTable(p);
   renderBeTable(p);
+  renderEquilTable(p);
 }
 
 function renderSummary(p) {
