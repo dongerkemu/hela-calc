@@ -771,7 +771,21 @@ const EQUIPMENT = [
     afkGoldPerOp: 0.6,
     afkOpIntervalH: 6,
   },
-  // === 钻石装备（服务端 mechine 50001-50004 / synthesis，产出钻石，每 6h 一轮）===
+  // === 钻石装备（服务端 mechine 50001-50005 / synthesis，产出钻石，每 6h 一轮）===
+  {
+    id: 'club',
+    name: '木棒',
+    icon: '🏏',
+    iconClass: 'icon-weapon',
+    synth: { gold: 130, wood: 0, diamond: 200, fuel: 400 },  // 服务端 synthesis.resId，每日自动同步
+    cycleH: 6,
+    outputPerCycle: 2,
+    outputType: 'diamond',
+    runFuelPerCycle: 6,  // 服务端 mechine.oilCost，每日自动同步
+    repairGold: 3.4,     // 耐久衰减 17 × 0.2
+    afkGoldPerOp: 0.6,
+    afkOpIntervalH: 6,
+  },
   {
     id: 'sword',
     name: '断剑',
